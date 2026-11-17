@@ -1,0 +1,3554 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>送印资料价格自动计算（单机版）</title>
+<style>
+  :root{--brand:#3B6FD4;--brand-dark:#1E3A6E;--brand-deep:#2F5CB5;
+        --bg:#F4F6FA;--card:#fff;--line:#E3E9F3;--line-soft:#EEF2F8;
+        --text:#1F2937;--muted:#6B7280;--warn:#FFF6E5;--danger:#FCEDEA;--ok:#EAF5EA}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+       font-family:"微软雅黑","Microsoft YaHei",Arial,sans-serif;font-size:14px;line-height:1.6}
+
+  /* ---------- 顶栏 ---------- */
+  header{background:linear-gradient(135deg,#2F5597,#4472C4);color:#fff;padding:14px 24px;
+         display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  header h1{margin:0;font-size:17px;font-weight:600;letter-spacing:.3px}
+  header .sub{font-size:12px;opacity:.85;margin-top:2px}
+  .hd-right{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .pill{padding:4px 11px;border-radius:20px;background:rgba(255,255,255,.18);cursor:pointer;
+        border:1px solid rgba(255,255,255,.35);font-size:12px;white-space:nowrap}
+  .pill:hover{background:rgba(255,255,255,.28)}
+  .pill.locked{background:rgba(17,24,39,.28);border-color:rgba(255,255,255,.45)}
+
+  main{max-width:1080px;margin:0 auto;padding:18px 16px 48px}
+  main.wide{max-width:1420px}
+
+  /* ---------- 标签页 ---------- */
+  .tabs{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+  .tab{padding:9px 20px;border-radius:9px;background:#fff;border:1px solid #DDE4F0;cursor:pointer;
+       font-size:13px;color:#4B5563;transition:.15s}
+  .tab:hover{border-color:#B9CCF0;color:var(--brand)}
+  .tab.active{background:var(--brand);border-color:var(--brand);color:#fff;box-shadow:0 4px 12px rgba(59,111,212,.25)}
+
+  /* ---------- 卡片 ---------- */
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;
+        padding:20px 22px;margin-bottom:16px;box-shadow:0 1px 3px rgba(16,24,40,.04)}
+  .card h2{margin:0;font-size:15px;color:var(--brand-dark);display:flex;align-items:center;gap:8px}
+  .card h2::before{content:"";width:4px;height:15px;border-radius:2px;background:var(--brand);display:inline-block}
+  .card-hd{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+  .hint{font-size:12px;color:var(--muted);line-height:1.7;margin:6px 0 0}
+
+  /* ---------- 表单分组 ---------- */
+  .group{margin-top:16px;padding-top:16px;border-top:1px dashed #E6ECF6}
+  .group.first{margin-top:8px;padding-top:0;border-top:none}
+  .gt{font-size:12px;font-weight:600;color:var(--brand);letter-spacing:.4px;
+      margin-bottom:10px;display:flex;align-items:center;gap:7px}
+  .gt::before{content:"";width:6px;height:6px;border-radius:50%;background:#B9CCF0}
+  .form{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px 14px}
+  .form.four{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .form.spec{grid-template-columns:1.3fr .95fr 1.05fr .82fr 1.55fr}
+  @media(max-width:900px){ .form.spec{grid-template-columns:repeat(2,minmax(0,1fr))} }
+  @media(max-width:820px){ .form.four{grid-template-columns:repeat(2,minmax(0,1fr))} }
+  label{display:block;font-size:12px;color:var(--muted);margin-bottom:5px}
+  input,select{width:100%;padding:8px 10px;border:1px solid #DDE4F0;border-radius:7px;
+               font-family:inherit;font-size:13px;background:#fff;color:var(--text);transition:.15s}
+  input:focus,select:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px rgba(59,111,212,.12)}
+  input[readonly]{background:#F7F9FC;color:#8A94A6;cursor:not-allowed}
+  .reqline{font-size:11px;color:var(--muted);margin-top:3px;line-height:1.5}
+  .supnote{font-size:11px;color:#C55A11;margin-top:4px;line-height:1.5}
+  /* 面数组合：纸张尺寸 + 面数 + PDF识别 */
+  .pages-combo{display:flex;gap:6px;align-items:center}
+  .pages-combo .dd{flex:none;width:82px}
+  .pages-combo input[type=number]{flex:1;min-width:64px}
+  .mini{flex:none;padding:7px 9px;font-size:12px;border:1px solid #C9D6E8;background:#fff;
+        border-radius:8px;cursor:pointer;color:#3A4A5E;line-height:1.2;min-width:44px;font-family:inherit}
+  .mini:hover{background:#F2F6FC;border-color:#9DB8DC}
+  /* 纸张厚度示意 */
+  .pv{margin-top:14px;border:1px solid #E1E9F6;border-radius:12px;
+      background:linear-gradient(180deg,#FBFCFF,#F5F8FE);padding:10px 14px 8px;
+      display:grid;grid-template-columns:minmax(0,1fr) 244px;gap:14px;align-items:center}
+  @media(max-width:820px){ .pv{grid-template-columns:minmax(0,1fr)} }
+  .pv-cap{font-size:11px;color:#8A94A6;margin-bottom:2px}
+  .pv svg{display:block;width:100%;height:auto;max-width:540px}
+  .pv-side{border-left:1px dashed #DCE5F3;padding-left:16px}
+  @media(max-width:820px){ .pv-side{border-left:none;padding-left:0;border-top:1px dashed #DCE5F3;padding-top:10px} }
+  .pv-name{font-size:11.5px;color:#6B7280;line-height:1.4}
+  .pv-mm{font-size:27px;font-weight:700;color:#2F5CB5;line-height:1.2;letter-spacing:.4px}
+  .pv-mm span{font-size:11.5px;font-weight:400;color:#8A94A6;margin-left:4px}
+  .pv-tag{display:inline-block;margin-top:2px;padding:2px 10px;border-radius:20px;
+          background:#EAF1FF;color:#2F5CB5;font-size:11px;font-weight:600}
+  .pv-list{margin:8px 0 0;padding:0;list-style:none;font-size:11.5px;color:#4B5563;line-height:1.8}
+  .pv-list b{color:#1F2937}
+  .pv-note{font-size:10.5px;color:#9AA4B5;margin-top:6px;line-height:1.5}
+  /* 导入预览面板 */
+  .imp-box{margin-top:16px;border:1px solid #C9D6E8;border-radius:10px;background:#FAFBFE;padding:12px 14px}
+  .imp-hd{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+  .imp-hd b{font-size:13px}
+  .imp-hd .spacer{flex:1}
+  .imp-hd .mini{padding:4px 9px}
+  .imp-note{font-size:12px;line-height:1.6;margin-bottom:8px;color:#4B5563}
+  .imp-note.warn{color:#C0392B}
+  /* 本批读取诊断：放在预览面板内部，跳到预览后依然看得见，不会误以为没读到文件 */
+  .imp-diag{background:#FFF8E6;border:1px solid #F0D89A;border-radius:8px;padding:8px 12px;
+            font-size:12px;line-height:1.7;color:#7A5A18;margin-bottom:10px;word-break:break-word}
+  .imp-diag[hidden]{display:none}
+  /* 拖文件夹读不到时的「一键改用选择文件夹」卡片：放在批量录入区，一定看得见 */
+  .imp-fail{background:#FDECEA;border:1px solid #F0B4AC;border-radius:9px;padding:11px 13px;
+            margin-top:10px;font-size:12.5px;line-height:1.8;color:#9C2B20}
+  .imp-fail b{font-size:13px}
+  .imp-fail ol{margin:5px 0 7px;padding-left:20px}
+  .imp-fail .imp-fail-btns{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .imp-fail button{font-size:12px;padding:6px 12px}
+  .imp-fail[hidden]{display:none}
+  .imp-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .imp-table{width:100%;border-collapse:collapse;font-size:12.5px;min-width:680px}
+  .imp-table th,.imp-table td{border:1px solid #E3EAF4;padding:8px 10px;text-align:left;white-space:nowrap}
+  .imp-table th{background:#EEF3FB;font-size:11.5px;color:#33445C}
+  .imp-table td.imp-st.ok{color:#2E7D32}
+  .imp-table td.imp-st.miss{color:#C0392B}
+  .imp-foot{margin-top:10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .imp-foot button:disabled{opacity:.45;cursor:not-allowed;box-shadow:none}
+
+  /* ---------- 导入预览：本批印刷规格确认 ---------- */
+  .imp-spec{display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap;margin:0 0 10px;
+            padding:10px 12px;border:1px solid #EFD9A6;border-radius:10px;
+            background:#FFFBF2;transition:.18s}
+  .imp-spec.ok{border-color:#BFE3C6;background:#F4FBF6}
+  .imp-spec-l{flex:1;min-width:240px}
+  .imp-spec-l>b{font-size:12px;color:#8A6412;letter-spacing:.2px}
+  .imp-spec.ok .imp-spec-l>b{color:#2E7D32}
+  .imp-spec-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+  .imp-chip{font-size:11px;line-height:1.6;background:#fff;border:1px solid #E4EAF3;
+            border-radius:6px;padding:1px 8px;color:#7B8798}
+  .imp-chip b{color:#22344C;font-weight:600}
+  .imp-chip.warn{border-color:#F0DEB4;background:#FDF5E3;color:#8A6412}
+  .imp-spec-tip{font-size:11px;color:#9A6B10;margin-top:6px;line-height:1.5}
+  .imp-spec.ok .imp-spec-tip{color:#3F7A4B}
+  .imp-spec-r{display:flex;gap:8px;flex:none;padding-top:2px}
+  /* 本批规格：原地展开的编辑区（不跳转到下方手写区） */
+  .imp-spec-editor{display:none;margin-top:10px;padding:10px 12px;border:1px solid #E4EAF3;
+                   border-radius:8px;background:#fff}
+  .imp-spec-editor.open{display:block}
+  .imp-spec-editor-hd{font-size:11px;color:#5B6B82;margin-bottom:8px;line-height:1.5}
+  .imp-spec-editor .imp-specform{flex-wrap:wrap;gap:10px 16px}
+  .imp-spec-editor .imp-specform label{font-size:11.5px}
+  .imp-spec-editor .imp-specform select{max-width:230px}
+  .imp-spec-editor-tools{display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap}
+  .imp-spec-editor-tools .hint{font-size:11px;color:#8A94A6}
+
+  /* ---------- 批量录入：单一拖拽入口（文件 / 文件夹 / 表格自动分流） ---------- */
+  .imp-bar{margin:12px 0 4px;padding:10px 12px;border:1px dashed #C9D6E8;border-radius:10px;
+           background:linear-gradient(180deg,#FAFCFF,#F4F8FE)}
+  .imp-drop{display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+            border:1.5px dashed #C7D5EA;border-radius:10px;background:#fff;
+            padding:11px 14px;cursor:pointer;transition:.15s}
+  .imp-drop:hover{border-color:#8FB0DE;background:#F6FAFF}
+  .imp-bar.over .imp-drop{border-color:var(--brand);border-style:solid;background:#EAF2FF;
+                          box-shadow:0 0 0 3px rgba(59,111,212,.10)}
+  .imp-drop-ic{flex:none;width:34px;height:34px;border-radius:9px;background:#EAF1FF;color:#2F5CB5;
+               display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:700}
+  .imp-drop-tx{flex:1;min-width:210px;line-height:1.5}
+  .imp-drop-tx b{display:block;font-size:12.5px;color:#22344C}
+  .imp-drop-tx span{display:block;font-size:11px;color:#7B8798;margin-top:2px}
+  .imp-drop-btns{display:flex;gap:8px;flex-wrap:wrap;flex:none}
+  .imp-drop-btns .ghost{background:#fff;border-color:#C9D6E8;color:#2F5CB5;font-weight:600;padding:8px 13px}
+  .imp-drop-btns .ghost:hover{background:#EEF4FF;border-color:#9DB8DC}
+  .imp-tip{font-size:10.5px;color:#8A94A6;margin-top:8px;line-height:1.5}
+  /* 拖动文件/文件夹时覆盖全页：整页任意位置都能松手，不会再「拖不进去」 */
+  .gdrop{position:fixed;inset:0;z-index:9999;pointer-events:none;display:flex;
+         align-items:center;justify-content:center;background:rgba(30,66,124,.16);
+         backdrop-filter:blur(1px);opacity:0;transition:opacity .12s}
+  .gdrop.show{opacity:1}
+  .gdrop-card{background:#fff;border:2px dashed var(--brand);border-radius:16px;
+              box-shadow:0 14px 44px rgba(24,55,110,.24);padding:26px 38px;text-align:center;
+              max-width:min(560px,86vw)}
+  .gdrop-ic{font-size:34px;line-height:1;color:var(--brand);font-weight:700}
+  .gdrop-card b{display:block;font-size:17px;color:#1B2F4E;margin:10px 0 6px}
+  .gdrop-card span{display:block;font-size:12.5px;color:#5B6B82;line-height:1.7}
+  .gdrop-card em{display:block;font-size:11.5px;color:#2F5CB5;margin-top:8px;font-style:normal}
+  .imp-drop.dir .imp-drop-tx b{color:var(--brand-dark)}
+  /* 收起预览后仍能看得到已导入的内容 */
+  .imp-resume{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:9px;
+              padding:8px 11px;border:1px solid #C6E0CC;border-radius:9px;
+              background:#F3FBF5;font-size:11.5px;color:#2F6B3C;line-height:1.5}
+  .imp-resume b{color:#1E502A}
+  .imp-resume #impResumeTx{flex:1;min-width:220px}
+  .imp-resume-btns{display:flex;gap:8px;flex:none;align-items:center}
+  .imp-resume .mini{padding:5px 10px;font-size:11.5px;background:#fff;border-color:#BBDCC4;color:#2E7D32}
+  .imp-resume .mini.danger{border-color:#F0C9C4;color:#C0392B}
+  /* 跳转到印刷规格时的高亮 */
+  .group.spec-flash{animation:specFlash 1.6s ease-out}
+  .imp-spec.spec-flash{animation:specFlash 1.6s ease-out}
+  .spec-back{margin-top:12px}
+  .spec-back .mini{border-style:dashed;color:#2F5CB5;background:#F5F9FF;border-color:#9DB8DC}
+  @keyframes specFlash{
+    0%{background:#FFF6DF;box-shadow:0 0 0 6px #FFF6DF}
+    60%{background:#FFFBF0;box-shadow:0 0 0 6px #FFFBF0}
+    100%{background:transparent;box-shadow:none}
+  }
+
+  /* ---------- 手写送印单：分割线 + 折叠头 ---------- */
+  .hand-split{height:1px;background:#DCE4EF;margin:18px 0 0;border-radius:1px}
+  .hand-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+             margin:0 0 2px;padding:10px 2px 10px 0;cursor:pointer;user-select:none}
+  .hand-head:hover .hand-tg{border-color:#9DB8DC;color:#2F5CB5;background:#F5F9FF}
+  .hand-head-l{flex:1;min-width:200px;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+  .hand-head-l b{font-size:13px;color:#22344C;letter-spacing:.2px}
+  .hand-head-l .hand-sub{font-size:11px;color:#8792A4}
+  .hand-badge{display:inline-block;font-size:10.5px;color:#8A6412;background:#FDF5E3;
+              border:1px solid #F0DEB4;border-radius:20px;padding:1px 8px;font-weight:600}
+  .hand-badge.hide{display:none}
+  .hand-tg{flex:none;display:inline-flex;align-items:center;gap:6px;background:#fff;
+           border:1px solid #D6E0EE;color:#5B6B82;font-size:11.5px;font-weight:600;
+           padding:5px 11px;border-radius:20px;cursor:pointer;transition:.15s}
+  .hand-caret{width:0;height:0;border-left:4.5px solid transparent;border-right:4.5px solid transparent;
+              border-top:5px solid currentColor;transition:transform .18s}
+  .hand-head.closed .hand-caret{transform:rotate(-90deg)}
+  .hand-body{animation:handIn .18s ease-out}
+  @keyframes handIn{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:none}}
+  .hand-body>.group.first .gt{margin-top:2px}
+
+  /* 导入队列进度条：文件自动填入手写单后，在表单顶部提示当前是第几个/共几个 */
+  .flow-bar{margin:0 0 12px;padding:10px 12px;border:1px solid #BFE0CB;border-radius:10px;
+            background:#F3FAF6;line-height:1.5}
+  .flow-bar.warn{border-color:#F0D9A8;background:#FFFAF0}
+  .flow-bar.hide{display:none}
+  .flow-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .flow-top .fb-ic{font-size:15px}
+  .flow-top b{color:#226E3B;font-size:12.5px}
+  .flow-bar.warn .flow-top b{color:#8A6412}
+  .flow-top .fb-step{font-size:11.5px;color:#3F7A4B;background:#E4F4EA;border:1px solid #C6E6D2;
+                     border-radius:20px;padding:1px 9px;font-weight:600}
+  .flow-bar.warn .flow-top .fb-step{color:#8A6412;background:#FBF0DA;border-color:#F0DEB4}
+  .flow-top .spacer{flex:1}
+  .flow-name{font-size:12px;color:#2C4A38;margin:6px 0 0;word-break:break-all}
+  .flow-name b{color:#1B5E36}
+  .flow-meta{font-size:11px;color:#6B8C78;margin-top:3px}
+  .flow-acts{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:9px}
+  .flow-acts .mini{padding:6px 12px;font-size:12px;border-radius:8px}
+  .flow-hint{font-size:11px;color:#7A8C81;margin-top:7px;line-height:1.5}
+
+  /* ---------- 拖拽框 ---------- */
+  .dz{margin-top:12px;border:1.5px dashed #C7D5EA;border-radius:10px;background:#FBFCFE;
+      padding:11px 14px;display:flex;align-items:center;gap:12px;cursor:pointer;
+      transition:.15s;line-height:1.45}
+  .dz:hover{border-color:#8FB0DE;background:#F5F9FF}
+  .dz.over{border-color:var(--brand);background:#EAF2FF;box-shadow:0 0 0 3px rgba(59,111,212,.10)}
+  .dz-ic{flex:none;width:30px;height:30px;border-radius:8px;background:#EAF1FF;color:#2F5CB5;
+         display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700}
+  .dz-tx{flex:1;min-width:0}
+  .dz-tx b{font-size:12.5px;color:#22344C}
+  .dz-tx span{display:block;font-size:10.5px;color:#8A94A6;margin-top:1px}
+  .dz-ok .dz-ic{background:#E8F5E9;color:#2E7D32}
+
+  /* ---------- 导入预览：可填数量 / 分校区（与手写单同款圆角、间距） ---------- */
+  .imp-table td input.imp-qty{width:84px;padding:7px 9px;font-size:12.5px;border-radius:7px}
+  .imp-table td input.imp-pages{width:84px;padding:7px 9px;font-size:12.5px;border-radius:7px}
+  .imp-table input[type=number]{-moz-appearance:textfield;-webkit-appearance:textfield;appearance:textfield}
+  .imp-table input[type=number]::-webkit-outer-spin-button,
+  .imp-table input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+  .imp-table td input:focus{box-shadow:0 0 0 3px rgba(59,111,212,.12)}
+  .imp-table td .imp-cam{padding:5px 10px;font-size:11.5px;min-width:auto;border-radius:7px}
+  .imp-table td .imp-cam.on{background:#EEF4FF;border-color:#9DB8DC;color:#2F5CB5;font-weight:600}
+  .imp-table tr.imp-camrow>td{background:#F7FAFF;border-top:none;padding:11px 13px}
+  .imp-camhd{font-size:11.5px;color:#5B6B82;margin-bottom:8px;font-weight:600}
+  .imp-table td .imp-specbtn{padding:5px 10px;font-size:11.5px;min-width:auto;border-radius:7px}
+  .imp-table td .imp-specbtn.on{background:#EEF4FF;border-color:#9DB8DC;color:#2F5CB5;font-weight:600}
+  .imp-table td .imp-del{padding:5px 9px;color:#C0392B;border-color:#E8C9C9;background:#FFF8F8;border-radius:7px}
+  .imp-table tr.imp-specrow>td{background:#FAF8F1;border-top:none;padding:11px 13px}
+  .imp-spechd{font-size:11.5px;color:#5B6B82;margin-bottom:8px}
+  .imp-specform{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:flex-end}
+  .imp-specform>label{display:flex;flex-direction:column;gap:4px;font-size:11.5px;color:#5B6B82}
+  .imp-specform select{padding:7px 9px;font-size:12.5px;border:1px solid #C9D6E8;border-radius:7px;background:#fff;max-width:220px}
+  .imp-specform select:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px rgba(59,111,212,.12)}
+  .imp-specform .rs-empty{font-size:11.5px;color:#C0392B;align-self:center}
+  .rs-extras{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center;font-size:11.5px;color:#5B6B82;padding-bottom:4px}
+  .rs-extras>span{margin-right:2px;font-weight:600}
+  .rs-extras label{display:inline-flex;align-items:center;gap:4px;white-space:nowrap;cursor:pointer}
+  .rs-extras input{accent-color:var(--brand)}
+  .rs-tools{margin-top:9px;display:flex;gap:8px;align-items:center}
+  .rs-tools .hint{margin:0}
+  .imp-camgrid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:9px}
+  @media(max-width:820px){ .imp-camgrid{grid-template-columns:repeat(3,minmax(0,1fr))} }
+  .imp-camgrid label{display:flex;align-items:center;gap:7px;font-size:11.5px;color:#374151;margin:0;font-weight:400}
+  .imp-camgrid label span{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .imp-camgrid input{width:56px;flex:none;padding:6px 7px;font-size:12px;border-radius:7px}
+  .imp-camsum{font-size:12px;color:#2F5CB5;margin-top:8px;font-weight:600}
+  @keyframes impFlash{0%,100%{box-shadow:0 0 0 0 rgba(59,111,212,0)}30%{box-shadow:0 0 0 4px rgba(59,111,212,.16)}}
+  .imp-box.flash{animation:impFlash 1.2s ease-out 2}
+
+  /* ---------- 自定义下拉（固定向下展开，不被浏览器翻转到上方） ---------- */
+  .dd{position:relative}
+  .dd-native{display:none}
+  .dd-btn{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;
+          background:#fff;color:var(--text);border:1px solid #DDE4F0;border-radius:7px;
+          padding:8px 10px;font-size:13px;font-weight:400;text-align:left;box-shadow:none;transition:.15s}
+  .dd-btn:hover{background:#fff;border-color:#B9CCF0}
+  .dd-btn:focus-visible{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px rgba(59,111,212,.12)}
+  .dd-txt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .dd.ph .dd-txt{color:#9AA4B5}
+  .dd-caret{flex:none;width:7px;height:7px;margin:-4px 3px 0 0;
+            border-right:1.6px solid #8A94A6;border-bottom:1.6px solid #8A94A6;
+            transform:rotate(45deg);transition:transform .15s}
+  .dd.open .dd-btn{border-color:var(--brand);box-shadow:0 0 0 3px rgba(59,111,212,.12)}
+  .dd.open .dd-caret{transform:rotate(-135deg);margin-top:1px}
+  .dd-panel{position:absolute;top:calc(100% + 4px);left:0;z-index:40;display:none;
+            width:max-content;min-width:100%;max-width:300px;
+            background:#fff;border:1px solid #DDE4F0;border-radius:9px;padding:6px;
+            max-height:320px;overflow:auto;box-shadow:0 10px 28px rgba(16,24,40,.14)}
+  .dd.open .dd-panel{display:block}
+  .dd-group{font-size:11px;color:#94A3B8;padding:7px 9px 3px;letter-spacing:.5px}
+  .dd-opt{padding:7px 10px;border-radius:6px;font-size:13px;cursor:pointer;
+          white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .dd-opt:hover{background:#F2F6FF}
+  .dd-opt.sel{background:#EEF4FF;color:var(--brand-dark);font-weight:600}
+
+  /* ---------- 附加工艺 chips ---------- */
+  .chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:2px}
+  .chip{display:inline-flex;align-items:center;gap:6px;padding:6px 13px;border:1px solid #DDE4F0;
+        border-radius:20px;font-size:12px;color:#4B5563;cursor:pointer;background:#fff;margin:0;
+        transition:.15s;user-select:none}
+  .chip input{width:13px;height:13px;margin:0;accent-color:var(--brand);cursor:pointer}
+  .chip:hover{border-color:#B9CCF0}
+  .chip:has(input:checked){border-color:var(--brand);background:#EEF4FF;color:var(--brand-dark);font-weight:600}
+  .extras-note{margin-top:7px}
+  .extras-note b{color:#2F5CB5}
+
+  /* ---------- 按钮 ---------- */
+  button{font-family:inherit;font-size:13px;border-radius:8px;border:1px solid var(--brand);
+         background:var(--brand);color:#fff;padding:9px 18px;cursor:pointer;transition:.15s}
+  button:hover{background:var(--brand-deep);border-color:var(--brand-deep)}
+  button.ghost{background:#fff;color:var(--brand)}
+  button.ghost:hover{background:#F2F6FF}
+  button.danger{background:#fff;color:#C0392B;border-color:#E7B4AC}
+  button.danger:hover{background:#FDF2F0;border-color:#C0392B}
+  button.primary{padding:10px 26px;font-size:14px;font-weight:600;box-shadow:0 3px 10px rgba(59,111,212,.22)}
+  button.sm{padding:3px 10px;font-size:12px;border-radius:6px}
+  .btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px;align-items:center}
+  .btn-row .spacer{flex:1}
+
+  /* ---------- 算价结果 ---------- */
+  .result{margin-top:18px;border:1px solid #DCE6F7;border-radius:10px;overflow:hidden;background:#fff}
+  .result .big{display:flex;flex-wrap:wrap;background:#F7FAFF}
+  .result .big>div{flex:1 1 150px;padding:14px 18px;border-right:1px solid #E6EDF9}
+  .result .big>div:last-child{border-right:none}
+  .result .big span{display:block;font-size:11px;color:#7A869A;margin-bottom:1px}
+  .result .big b{font-size:23px;color:var(--brand-dark);font-variant-numeric:tabular-nums;letter-spacing:.3px}
+  .result .big>div.hi{background:#EEF4FF}
+  .result .big>div.hi b{color:#0F3F86}
+  .result .detail{padding:12px 18px;font-size:12.5px;color:#5B6675;line-height:1.95;
+                  border-top:1px solid #E6EDF9;background:#fff}
+  .result .detail b{color:var(--brand-dark)}
+
+  /* ---------- 清单表格 ---------- */
+  .sumchips{display:flex;gap:8px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+  .sumchips span{background:#F3F6FC;border:1px solid var(--line);border-radius:20px;padding:4px 13px}
+  .sumchips b{color:var(--brand-dark);font-variant-numeric:tabular-nums}
+  .tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:9px}
+  table{border-collapse:collapse;width:100%;font-size:12.5px}
+  th{background:#F3F6FC;color:#41506B;font-weight:600;text-align:left;padding:9px 11px;
+     white-space:nowrap;border-bottom:1px solid var(--line)}
+  td{padding:8px 11px;border-bottom:1px solid var(--line-soft);vertical-align:middle}
+  tbody tr:last-child td{border-bottom:none}
+  tbody tr:hover{background:#FAFBFE}
+  td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+  td.campuscell{font-size:11px;color:var(--muted);max-width:150px;white-space:nowrap;word-break:keep-all;
+                overflow:hidden;text-overflow:ellipsis}
+  tr.sumrow td{background:#F7FAFF;font-weight:600;color:var(--brand-dark);border-top:2px solid #DCE6F7}
+  .empty{text-align:center;color:#9AA4B5;padding:26px 0!important;font-size:13px}
+
+  /* ---------- 其它 ---------- */
+  .tag{font-size:11px;padding:2px 9px;border-radius:10px;background:#EEF1F6;color:var(--muted)}
+  .tag.ok{background:var(--ok);color:#375623}.tag.warn{background:var(--warn);color:#8A6100}
+  .tag.err{background:var(--danger);color:#9C0006}
+  .msg{font-size:13px;margin-top:10px;min-height:20px}
+  .msg.err{color:#C0392B}.msg.ok{color:#375623}.msg.warn{color:#8A6100}
+  .lockbar{background:var(--warn);border:1px solid #E8C88A;border-radius:8px;padding:10px 13px;
+           font-size:13px;margin-bottom:14px;display:flex;justify-content:space-between;
+           align-items:center;gap:10px;flex-wrap:wrap;color:#7A5A18}
+  #tamper{display:none;background:#FCEDEA;color:#9C0006;padding:10px 20px;font-size:13px;font-weight:600}
+  .modal{position:fixed;inset:0;background:rgba(17,24,39,.42);display:none;align-items:center;
+         justify-content:center;z-index:50}
+  .modal.show{display:flex}
+  .modal .box{background:#fff;border-radius:12px;padding:22px;width:370px;max-width:92vw;
+              box-shadow:0 12px 40px rgba(16,24,40,.2)}
+  .modal h3{margin:0 0 16px;font-size:15px;color:var(--brand-dark)}
+  td input.price{width:84px;padding:4px 7px;font-size:12px}
+  .hidden{display:none!important}
+  /* 价格参数页：仅管理员登录后可见 */
+  .tab[data-t="prices"]{display:none}
+  .tab[data-t="prices"].showtab{display:block}
+  /* 分校区明细 */
+  .campus-box{margin-top:14px;border:1px dashed #B4C7E7;border-radius:9px;padding:12px 14px;background:#FAFBFD}
+  .campus-box .t{font-size:12px;color:var(--muted);margin-bottom:10px}
+  .campus-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px}
+  @media(max-width:820px){ .campus-grid{grid-template-columns:repeat(3,minmax(0,1fr))} }
+  .campus-grid .ci label{font-size:11px;color:#374151;margin-bottom:2px;white-space:nowrap;
+                         overflow:hidden;text-overflow:ellipsis}
+  .campus-grid .ci input{padding:5px 7px;font-size:12px}
+  /* 不分校区时：已选一个校区，其余锁定 */
+  .campus-grid .ci.locked label{color:#B7C0CE}
+  .campus-grid .ci input:disabled{background:#F2F5FA;color:#B7C0CE;border-style:dashed;
+                                  border-color:#E1E7F1;cursor:not-allowed}
+  .campus-grid .ci input:disabled::placeholder{color:#B7C0CE}
+  .sumline{font-size:12px;color:var(--brand-dark);margin-top:10px;font-weight:600}
+  .sumline.bad{color:#C0392B}
+  .reqline.warnline{color:#C0392B}
+  td.tier{white-space:nowrap}
+  td.tier input{padding:4px 5px;font-size:11.5px;display:inline-block;vertical-align:middle}
+  td.tier input.tq{width:58px}
+  td.tier input.tp{width:64px}
+  /* 窄表格里隐藏数字微调按钮，避免数字被截断 */
+  #priceTable input[type=number],#goodsTable input[type=number]{-moz-appearance:textfield}
+  #priceTable input[type=number]::-webkit-outer-spin-button,#priceTable input[type=number]::-webkit-inner-spin-button,
+  #goodsTable input[type=number]::-webkit-outer-spin-button,#goodsTable input[type=number]::-webkit-inner-spin-button{
+    -webkit-appearance:none;margin:0}
+  #goodsTable input.gspec{width:140px}
+  td.tier .tsep{color:#C7D2E4;font-size:11px;margin:0 3px}
+  #goodsTable{width:100%}
+  #goodsTable td,#goodsTable th{white-space:nowrap;padding:7px 8px}
+  #goodsTable td.note{white-space:normal;font-size:11px;color:#6B7280;min-width:100px;max-width:170px}
+  #goodsTable input.gspec{padding:4px 6px;font-size:11.5px}
+  #goodsTable input.moq{width:54px;padding:4px 6px;font-size:11.5px}
+  #goodsTable input.price{width:70px;padding:4px 6px;font-size:11.5px}
+</style>
+</head>
+<body>
+
+<!-- ===== 核心：价格参数与签名（不依赖 DOM，便于生成新版文件） ===== -->
+<script id="core">
+const SALT1 = "ShengyinPricing#2026a";
+const SALT2 = "HengYang&GuangDong#2026b";
+const PWD_SALT = "AdminPwdSalt#2026";
+const PRICE_SIG = "458f9332d0e785f4";
+const ADMIN_HASH = "578103ebee0816bb";
+
+function hashStr(s){
+  let h1 = 0x811c9dc5, h2 = 0x01000193;
+  for(let i=0;i<s.length;i++){
+    const c = s.charCodeAt(i);
+    h1 = (h1 ^ c) * 16777619 >>> 0; h1 = (h1 << 13 | h1 >>> 19) >>> 0;
+    h2 = (h2 + c) * 2654435761 >>> 0; h2 = (h2 << 7 | h2 >>> 19) >>> 0;
+  }
+  return (h1>>>0).toString(16).padStart(8,"0") + (h2>>>0).toString(16).padStart(8,"0");
+}
+/* 两张价格表一起签名，改任一张都会校验失败 */
+function signPrices(p, g){ return hashStr(SALT1 + JSON.stringify(p) + "||" + JSON.stringify(g) + SALT2); }
+function hashPwd(p){ return hashStr(PWD_SALT + p + PWD_SALT); }
+
+/* 一、书刊类价格（书本按本，试卷按面）
+   a=标准价或200-499本档；b=优惠价或500-1000本档；c=同款≥1000本档 */
+const PRICE_DATA = [
+  {id:1, supplier:"衡阳本地", kind:"封面", name:"250克铜板+哑膜+胶装", unit:"元/本", a:2.8, b:2.5, c:null, note:"A4；a=200-500本档，b=500-1000本档"},
+  {id:2, supplier:"衡阳本地", kind:"封面", name:"157克铜板+哑膜+胶装", unit:"元/本", a:2.6, b:2.3, c:null, note:"A4；a=200-500本档，b=500-1000本档"},
+  {id:3, supplier:"衡阳本地", kind:"封面", name:"250克铜板+哑膜+骑马钉", unit:"元/本", a:2.3, b:2.0, c:null, note:"A4；a=200-500本档，b=500-1000本档"},
+  {id:4, supplier:"衡阳本地", kind:"封面", name:"230克高阶细格+打钉+胶装", unit:"元/本", a:null, b:null, c:null, note:"骏马2026.11.8未报价，待补"},
+  {id:5, supplier:"衡阳本地", kind:"内页", name:"黑白80克", unit:"元/面", a:0.03, b:null, c:null, note:"200-499本档；500-1000本档厂家按数量页码另算，暂按标准价"},
+  {id:6, supplier:"衡阳本地", kind:"内页", name:"彩色80克", unit:"元/面", a:0.10, b:null, c:null, note:"200-499本档；500-1000本档厂家按数量页码另算，暂按标准价"},
+  {id:7, supplier:"衡阳本地", kind:"附加", name:"试卷左上角钉装", unit:"元/面", a:0.4, b:null, c:null, note:"试卷专用"},
+  {id:8, supplier:"广东印刷厂", kind:"封面", name:"250克铜板+哑膜+胶装", unit:"元/本", a:1.8, b:1.7, c:1.7, note:"A4 封面"},
+  {id:9, supplier:"广东印刷厂", kind:"封面", name:"157克铜板+哑膜+胶装", unit:"元/本", a:1.6, b:1.5, c:1.5, note:"A4 封面"},
+  {id:10, supplier:"广东印刷厂", kind:"封面", name:"230克高阶细格+打钉+胶装", unit:"元/本", a:2.5, b:2.4, c:2.4, note:"骑钉；230克皮纹与250克双铜同价，横竖同价；≥1000本档未列，暂按2.4"},
+  {id:11, supplier:"广东印刷厂", kind:"封面", name:"250克铜板+哑膜+骑马钉", unit:"元/本", a:1.6, b:1.5, c:1.5, note:"A4 封面；2000本以上的薄本可改骑马钉更便宜"},
+  {id:12, supplier:"广东印刷厂", kind:"内页", name:"彩色80克", unit:"元/面", a:0.043, b:0.040, c:0.038, note:"同款≥1000本每面减0.2分"},
+  {id:13, supplier:"广东印刷厂", kind:"内页", name:"黑白80克", unit:"元/面", a:0.023, b:0.021, c:0.019, note:"同款≥1000本每面减0.2分"},
+  {id:14, supplier:"广东印刷厂", kind:"内页", name:"彩色100克高白", unit:"元/面", a:0.065, b:0.065, c:0.063, note:"同款≥1000本每面减0.2分"},
+  {id:15, supplier:"广东印刷厂", kind:"内页", name:"协议价-彩色", unit:"元/面", a:0.045, b:0.044, c:null, note:"教材胶装/骑马订A4：10-50本0.045/面、51-200本0.044/面；低于200本不分校区统一价"},
+  {id:16, supplier:"广东印刷厂", kind:"内页", name:"协议价-黑白", unit:"元/面", a:0.025, b:0.024, c:null, note:"教材胶装/骑马订A4：10-50本0.025/面、51-200本0.024/面；低于200本不分校区统一价"},
+  {id:17, supplier:"广东印刷厂", kind:"附加", name:"全书80克骑马钉", unit:"元/本", a:0.30, b:0.25, c:null, note:"无封面骑马钉钉装费：500本以下 0.3 元/本；1000本以上 0.25"},
+  {id:18, supplier:"广东印刷厂", kind:"附加", name:"横版A4", unit:"元/本", a:2.8, b:null, c:null, note:"建议尽量不要做横版"},
+  {id:19, supplier:"广东印刷厂", kind:"附加", name:"横版A3", unit:"元/本", a:3.9, b:null, c:null, note:"建议尽量不要做横版"},
+  {id:20, supplier:"广东印刷厂", kind:"附加", name:"刷胶工艺", unit:"元/本", a:0.5, b:null, c:null, note:""},
+  {id:21, supplier:"衡阳本地",   kind:"试卷", name:"印刷面单价", unit:"元/面", a:0.035, b:null, c:null, note:"黑白印刷，按面计"},
+  {id:22, supplier:"衡阳本地",   kind:"试卷", name:"钉装费", unit:"元/面", a:0.4, b:null, c:null, note:"左上角钉装，按面计"},
+  {id:23, supplier:"广东印刷厂", kind:"试卷", name:"印刷面单价", unit:"元/面", a:0.023, b:null, c:null, note:"黑白80克，按面计"},
+  {id:24, supplier:"广东印刷厂", kind:"试卷", name:"钉装费", unit:"元/面", a:0.4, b:null, c:null, note:"左上角钉装，按面计"},
+  {id:25, supplier:"衡阳本地", kind:"附加", name:"全书80克骑马钉", unit:"元/本", a:0.5, b:0.5, c:null, note:"无封面骑马钉钉装费：不分数量档，0.5 元/本"},
+  {id:26, supplier:"衡阳本地", kind:"附加", name:"横版A4", unit:"元/本", a:2.8, b:null, c:null, note:"引自报价表附注，建议尽量不做横版"},
+  {id:27, supplier:"衡阳本地", kind:"附加", name:"横版A3", unit:"元/本", a:3.9, b:null, c:null, note:"引自报价表附注，建议尽量不做横版"},
+  {id:28, supplier:"衡阳本地", kind:"附加", name:"刷胶工艺", unit:"元/本", a:0.5, b:null, c:null, note:"引自报价表附注"},
+  {id:29, supplier:"广东印刷厂", kind:"封面", name:"协议价-彩色封面", unit:"元/本", a:1.8, b:1.8, c:null, note:"教材胶装/骑马订A4彩色封面：10-50本、51-200本均1.8元/本；仅低于200本适用"},
+  {id:30, supplier:"衡阳本地", kind:"内页", name:"协议价-黑白", unit:"元/面", a:0.035, b:null, c:null, note:"低于200本0.035/面（不分校区）"},
+  {id:31, supplier:"衡阳本地", kind:"内页", name:"协议价-彩色", unit:"元/面", a:0.15, b:null, c:null, note:"低于200本0.15/面（不分校区）"},
+  {id:32, supplier:"衡阳本地", kind:"封面", name:"协议价-彩色封面", unit:"元/本", a:3, b:null, c:null, note:"低于200本彩色封面3元/本；仅低于200本适用"}
+];
+
+/* 二、印刷品与物料价格：一行 = 品类+供应商+纸张规格
+   tiles 按数量取档：【最低量, 单价】升序；moq = 起订量（低于此数不接单） */
+const GOODS_DATA = [
+  {id:1, item:"宣传单", supplier:"广东印刷厂", paper:"157克铜版纸", unit:"元/张", moq:500, tiers:[[500,0.14],[1000,0.08],[2000,0.0775],[10000,0.062]], note:"A4 双面同价；500张70 / 1000张80 / 2000张155 / 1万张620"},
+  {id:2, item:"宣传单", supplier:"广东印刷厂", paper:"250克铜版纸", unit:"元/张", moq:500, tiers:[[500,0.26],[1000,0.17],[2000,0.155]], note:"A4 双面同价；500张130 / 1000张170 / 2000张310"},
+  {id:3, item:"宣传单", supplier:"广东印刷厂", paper:"200克铜版纸", unit:"元/张", moq:500, tiers:[[500,0.24],[1000,0.145],[2000,0.1225]], note:"A4 双面同价；500张120 / 1000张145 / 2000张245"},
+  {id:4, item:"宣传单", supplier:"衡阳本地", paper:"157克铜版纸", unit:"元/张", moq:500, tiers:[[500,0.24],[1000,0.16],[2000,0.11]], note:"A4 双面同价；500/1000/2000张档"},
+  {id:5, item:"海报", supplier:"衡阳本地", paper:"200克铜版纸 1.8×0.8", unit:"元/张", moq:1, tiers:[[1,26]], note:"衡阳海报 26 元/张"},
+  {id:6, item:"海报", supplier:"衡阳本地", paper:"250克铜版纸 1.8×0.8", unit:"元/张", moq:1, tiers:[], note:"待补报价"},
+  {id:7, item:"海报", supplier:"广东印刷厂", paper:"200克铜版纸 1.8×0.8", unit:"元/张", moq:1, tiers:[], note:"未报价；参考 X展架1.8×0.8=36（含架）"},
+  {id:8, item:"名片", supplier:"广东印刷厂", paper:"300克铜版纸（双面覆膜）", unit:"元/张", moq:500, tiers:[[500,0.048],[1000,0.032],[2000,0.029],[5000,0.0256]], note:"500张24 / 1000张32 / 2000张58 / 5000张128"},
+  {id:9, item:"名片", supplier:"衡阳本地", paper:"常规（单/双面按需）", unit:"元/张", moq:500, tiers:[[500,0.05],[1000,0.05],[2000,0.045]], note:"5000张档骏马未报价"},
+  {id:10, item:"笔记本", supplier:"广东印刷厂", paper:"70克内页+250克封面", unit:"元/本", moq:1000, tiers:[[1000,1.78],[2000,1.40],[13400,0.94]], note:"176×250：1000本1780 / 2000本2800；≥13400本随大货12600（1-1.5万本约0.95-0.91元/本）"},
+  {id:11, item:"笔记本", supplier:"衡阳本地", paper:"176×250（70克内页）", unit:"元/本", moq:1000, tiers:[[1000,1.2],[2000,1.02],[13400,0.92]], note:"封面250克铜+哑膜，内页70克40P单黑骑马订；≥13400本随大货0.92"},
+  {id:12, item:"台历", supplier:"广东印刷厂", paper:"21×14cm", unit:"元/个", moq:100, tiers:[[100,6],[200,5],[500,3.6],[1000,2.9]], note:"100份起订；壳子烫金单面另加150 / 双面另加200，热缩膜另加0.15元/个"},
+  {id:13, item:"台历", supplier:"衡阳本地", paper:"默认", unit:"元/个", moq:100, tiers:[], note:"未报价"},
+  {id:14, item:"X展架", supplier:"广东印刷厂", paper:"1.6×0.6", unit:"元/个", moq:1, tiers:[[1,32]], note:""},
+  {id:15, item:"X展架", supplier:"广东印刷厂", paper:"1.8×0.8", unit:"元/个", moq:1, tiers:[[1,36]], note:""},
+  {id:16, item:"X展架", supplier:"广东印刷厂", paper:"2×1.2", unit:"元/个", moq:1, tiers:[[1,80]], note:""},
+  {id:17, item:"X展架", supplier:"衡阳本地", paper:"1.8×0.8", unit:"元/个", moq:1, tiers:[], note:"未报价"},
+  {id:18, item:"易拉宝", supplier:"广东印刷厂", paper:"豪华钢塑 1.8×0.8", unit:"元/个", moq:1, tiers:[[1,75]], note:""},
+  {id:19, item:"易拉宝", supplier:"广东印刷厂", paper:"豪华钢塑 2×1.2", unit:"元/个", moq:1, tiers:[[1,110]], note:""},
+  {id:20, item:"易拉宝", supplier:"广东印刷厂", paper:"铝合金 1.8×0.8", unit:"元/个", moq:1, tiers:[[1,95]], note:""},
+  {id:21, item:"易拉宝", supplier:"广东印刷厂", paper:"铝合金 2×1.2", unit:"元/个", moq:1, tiers:[[1,130]], note:""},
+  {id:22, item:"易拉宝", supplier:"衡阳本地", paper:"画面 1.8×0.8（不含架）", unit:"元/张", moq:1, tiers:[[1,26]], note:""},
+  {id:23, item:"易拉宝", supplier:"衡阳本地", paper:"含架 1.8×0.8", unit:"元/套", moq:1, tiers:[[1,41]], note:""},
+  {id:24, item:"红包", supplier:"广东印刷厂", paper:"大号 88×165", unit:"元/个", moq:500, tiers:[[500,0.56],[1000,0.368]], note:"500个280 / 1000个368"},
+  {id:25, item:"红包", supplier:"衡阳本地", paper:"默认", unit:"元/个", moq:500, tiers:[], note:"未报价"},
+  {id:26, item:"胶扇", supplier:"广东印刷厂", paper:"大胶扇", unit:"元/把", moq:1000, tiers:[[1000,0.528]], note:"1000把528元"},
+  {id:27, item:"胶扇", supplier:"广东印刷厂", paper:"小胶扇", unit:"元/把", moq:1000, tiers:[[1000,0.468]], note:""},
+  {id:28, item:"胶扇", supplier:"广东印刷厂", paper:"短铆钉", unit:"元/把", moq:1000, tiers:[[1000,0.278]], note:""},
+  {id:29, item:"胶扇", supplier:"衡阳本地", paper:"默认", unit:"元/把", moq:1000, tiers:[], note:"未报价"},
+  {id:30, item:"热压袋", supplier:"广东印刷厂", paper:"默认", unit:"元/个", moq:500, tiers:[[500,1.12],[1000,0.80]], note:"500个560 / 1000个800"},
+  {id:31, item:"热压袋", supplier:"衡阳本地", paper:"默认", unit:"元/个", moq:500, tiers:[], note:"未报价"},
+  {id:32, item:"门牌", supplier:"衡阳本地", paper:"300克白卡 9×27.7 单面彩色", unit:"元/张", moq:1, tiers:[[1,2]], note:""},
+  {id:33, item:"门牌", supplier:"广东印刷厂", paper:"默认", unit:"元/张", moq:1, tiers:[], note:"未报价"},
+  {id:34, item:"指引图", supplier:"衡阳本地", paper:"车贴 48×36", unit:"元/张", moq:1, tiers:[[1,3]], note:""},
+  {id:35, item:"指引图", supplier:"广东印刷厂", paper:"默认", unit:"元/张", moq:1, tiers:[], note:"未报价"},
+  {id:36, item:"二维码卡片", supplier:"衡阳本地", paper:"300克铜纸 10×15 单面彩色", unit:"元/张", moq:1, tiers:[[1,1.5]], note:""},
+  {id:37, item:"二维码卡片", supplier:"广东印刷厂", paper:"157克圆角积分卡（教师名片）", unit:"元/张", moq:1000, tiers:[[1000,0.036],[2000,0.035]], note:"圆角模切；1000张36 / 2000张70"},
+  {id:38, item:"校区提示牌", supplier:"衡阳本地", paper:"车贴复哑膜 28×11", unit:"元/张", moq:1, tiers:[[1,1]], note:""},
+  {id:39, item:"校区提示牌", supplier:"广东印刷厂", paper:"默认", unit:"元/张", moq:1, tiers:[], note:"未报价"},
+  {id:40, item:"宣传单", supplier:"衡阳本地", paper:"200克铜版纸", unit:"元/张", moq:500, tiers:[[500,0.28],[1000,0.18],[2000,0.13]], note:"A4 双面同价"},
+  {id:41, item:"宣传单", supplier:"衡阳本地", paper:"250克铜版纸", unit:"元/张", moq:500, tiers:[[500,0.32],[1000,0.21],[2000,0.155]], note:"A4 双面同价"},
+  {id:42, item:"门型展架", supplier:"衡阳本地", paper:"加重 1.6×0.6", unit:"元/个", moq:1, tiers:[], note:"骏马未报价"},
+  {id:43, item:"门型展架", supplier:"衡阳本地", paper:"加重 1.8×0.8", unit:"元/个", moq:1, tiers:[[1,24]], note:"仅此规格有报价"},
+  {id:44, item:"门型展架", supplier:"衡阳本地", paper:"加重 2×1.2", unit:"元/个", moq:1, tiers:[], note:"骏马未报价"},
+  {id:45, item:"门型展架", supplier:"广东印刷厂", paper:"加重 1.6×0.6", unit:"元/个", moq:1, tiers:[[1,70]], note:""},
+  {id:46, item:"门型展架", supplier:"广东印刷厂", paper:"加重 1.8×0.8", unit:"元/个", moq:1, tiers:[[1,75]], note:""},
+  {id:47, item:"门型展架", supplier:"广东印刷厂", paper:"加重 2×1.2", unit:"元/个", moq:1, tiers:[[1,112]], note:""},
+  {id:48, item:"海报", supplier:"广东印刷厂", paper:"157克 1140×840 单面", unit:"元/张", moq:1000, tiers:[[1000,1.6]], note:"1000张1600元；折成品另加400元"},
+  {id:49, item:"海报", supplier:"广东印刷厂", paper:"80克双胶 1140×840 单面彩色", unit:"元/张", moq:500, tiers:[[500,1.6]], note:"500张800元；折成品另加200元"},
+  {id:50, item:"其他物料", supplier:"广东印刷厂", paper:"飞机天地盒（按裱坑最厚规格）", unit:"元/个", moq:50, tiers:[[50,13],[500,7],[1000,4]], note:"普通款约1.5-2元/个"},
+  {id:51, item:"其他物料", supplier:"广东印刷厂", paper:"YO铁圈本 A4（不含磨砂片）", unit:"元/本", moq:1, tiers:[[1,1.5]], note:"1-49本；50本以上再议"},
+  {id:52, item:"其他物料", supplier:"广东印刷厂", paper:"YO铁圈本 A4（含磨砂片）", unit:"元/本", moq:1, tiers:[[1,2.5]], note:"1-49本；50本以上再议"},
+  {id:53, item:"其他物料", supplier:"广东印刷厂", paper:"YO铁圈本 A4（含磨砂片＋250克硬封面）", unit:"元/本", moq:1, tiers:[[1,3.3]], note:"1-49本；50本以上再议"},
+  {id:54, item:"其他物料", supplier:"广东印刷厂", paper:"车线本 176×250 44P 黑白（2000本）", unit:"元/本", moq:2000, tiers:[[2000,1.45]], note:"内页40P 80克双胶黑白＋封面250克过亚膜；2000本2900元"},
+  {id:55, item:"其他物料", supplier:"广东印刷厂", paper:"车线本 176×250 44P 彩色（2000本）", unit:"元/本", moq:2000, tiers:[[2000,1.8]], note:"内页40P 80克双胶彩印＋封面250克过亚膜；2000本3600元"},
+  {id:56, item:"散页", supplier:"广东印刷厂", paper:"A4（不分校区·统一地址寄）", unit:"元/张", moq:1, tiers:[[1,0.04]], note:"单张散页，寄到一个地址；A3 按双倍计价"},
+  {id:57, item:"散页", supplier:"广东印刷厂", paper:"A4（分校区寄送）", unit:"元/张", moq:1, tiers:[[1,0.06]], note:"分校区寄送价；A3 按双倍计价"}
+];
+</script>
+
+<div id="tamper">⚠ 价格参数校验未通过：本文件的价格可能被修改过，请勿使用，请联系管理员索取最新版。</div>
+
+<header>
+  <div>
+    <h1>送印资料价格自动计算</h1>
+    <div class="sub">双击即用 · 无需服务器 · 可直接微信转发给同事</div>
+  </div>
+  <div class="hd-right">
+    <span id="sigState" class="pill">价格校验中…</span>
+    <span id="statePill" class="pill locked">只读（价格已锁定）</span>
+    <span class="pill" id="btnLoginTop">管理员登录</span>
+  </div>
+</header>
+
+<main>
+  <div class="tabs">
+    <div class="tab active" data-t="calc">本次送印清单</div>
+    <div class="tab" data-t="records">本机记录</div>
+    <div class="tab" data-t="prices">价格参数</div>
+  </div>
+
+  <!-- ============ 本次送印清单（唯一录入表单：填完即可算价、加入清单） ============ -->
+  <section id="t-calc">
+    <div class="card">
+      <h2>录入送印项</h2>
+      <div class="hint"><b>手动填写送印单</b>是主要录入方式：逐条填写、算价、加入清单。需要一次读入多个文件时，用本单下方的「导入送印项」，文件会自动填入本单逐条处理。</div>
+
+      <!-- 手动填写送印单：主要录入方式，默认展开 -->
+      <div class="hand-head" id="handHead" role="button" tabindex="0" aria-expanded="true" aria-controls="handBody">
+        <div class="hand-head-l">
+          <b>手动填写送印单</b>
+          <span class="hand-sub">主要录入方式：填好一项 → 算价 → 加入清单</span>
+          <span class="hand-badge hide" id="handBadge">已填 <i id="handBadgeN">0</i> 项</span>
+        </div>
+        <button class="hand-tg" id="btnHandTg" type="button" aria-expanded="true"><span id="handTgTx">收起</span><span class="hand-caret"></span></button>
+      </div>
+
+      <div class="hand-body" id="handBody">
+      <!-- 导入队列进度条：导入文件时才出现，逐条把文件填入本单 -->
+      <div class="flow-bar hidden" id="flowBar"></div>
+      <div class="hint" style="margin:0 0 10px">填好一项 → 点「计算价格」核对 → 「加入清单」，每加一条 = 在线表格里的一行。</div>
+
+      <!-- 基本信息 -->
+      <div class="group first">
+        <div class="gt">基本信息</div>
+        <div class="form">
+          <div><label>送印人</label><input id="b_sender" placeholder="如：李芳林"></div>
+          <div><label>科目</label><select id="b_subject"></select></div>
+          <div><label>年级</label><select id="b_grade"></select></div>
+          <div><label>教研资料（资料类型，可不填）</label><select id="b_booktype"></select></div>
+          <div style="grid-column:span 2"><label>版本（详细资料名）</label><input id="b_version" placeholder="如：初二逻辑思维综合训练手册"></div>
+          <div><label>送印日期</label><input id="b_date" type="date"></div>
+          <div><label>期望到达时间</label><input id="b_arrive" type="date"><div class="reqline" id="b_arrive_note"></div></div>
+          <div><label>批次备注（选填，仅用于文件名）</label><input id="b_note" placeholder="如：初二资料第二次加印"></div>
+        </div>
+      </div>
+
+      <!-- 印刷规格 -->
+      <div class="group" id="specGroup">
+        <div class="gt">印刷规格</div>
+        <div class="form spec">
+          <div><label>印刷项目</label>
+            <div class="dd" id="dd_item">
+              <button type="button" class="dd-btn" aria-haspopup="listbox">
+                <span class="dd-txt">书本（教材/练习册/汇编）</span><span class="dd-caret"></span>
+              </button>
+              <div class="dd-panel" role="listbox"></div>
+              <select id="b_itemtype" class="dd-native" tabindex="-1" aria-hidden="true">
+                <optgroup label="书刊类">
+                  <option>书本（教材/练习册/汇编）</option>
+                  <option>试卷</option>
+                </optgroup>
+                <optgroup label="印刷品">
+                  <option>宣传单</option><option>海报</option><option>名片</option>
+                  <option>笔记本</option><option>台历</option><option>红包</option><option>热压袋</option><option>散页</option>
+                </optgroup>
+                <optgroup label="物料/展具">
+                  <option>X展架</option><option>易拉宝</option><option>门型展架</option><option>胶扇</option>
+                  <option>门牌</option><option>指引图</option><option>二维码卡片</option><option>校区提示牌</option>
+                  <option>其他物料</option>
+                </optgroup>
+              </select>
+            </div>
+          </div>
+          <div><label>供应商</label><select id="b_supplier"></select><div class="supnote" id="b_sup_note"></div></div>
+          <div class="book-only"><label>封面工艺</label><select id="b_cover"></select></div>
+          <div class="book-only"><label>内页类型</label><select id="b_inner"></select></div>
+          <div id="b_pages_wrap"><label id="b_pages_label">内页面数（面/本）</label>
+            <div class="pages-combo">
+              <select id="b_size" title="纸张尺寸"><option>A4</option><option>A3</option></select>
+              <input id="b_pages" type="number" min="1" value="60">
+              <button type="button" class="mini" id="btnPdfPages" title="上传 PDF 自动识别页数并填入面数">PDF</button>
+            </div>
+            <div class="reqline" id="b_size_note"></div></div>
+          <div class="nonbook-only hidden" id="b_paper_wrap"><label>纸张 / 规格</label><select id="b_paper"></select><div class="reqline" id="b_paper_note"></div></div>
+          <div class="nonbook-only hidden"><label id="b_unit_label">单价（元）</label><input id="b_unitprice" type="number" min="0" step="0.001"><div class="reqline" id="b_unit_note"></div></div>
+        </div>
+        <!-- 拖拽识别页数 -->
+        <div class="dz" id="dzPages" role="button" tabindex="0" title="点击选择 PDF，或把文件拖进来">
+          <div class="dz-ic" id="dzIcon">PDF</div>
+          <div class="dz-tx">
+            <b id="dzTitle">把 PDF 拖到这里，自动读取页数并填入「内页面数」</b>
+            <span id="dzSub">也可以点这里选择文件 · 选 Word / WPS 文字、表格或多个文件会自动填入下方「手动填写送印单」；图片等非送印文件会被忽略</span>
+          </div>
+        </div>
+        <!-- 纸张厚度示意（选中有克重的纸张时出现） -->
+        <div class="pv hidden" id="paper_vis">
+          <div>
+            <div class="pv-cap">纸张厚度对比 · 同一比例放大示意，灰＝常见规格，蓝＝当前所选</div>
+            <div id="pv_chart"></div>
+          </div>
+          <div class="pv-side">
+            <div class="pv-name" id="pv_name"></div>
+            <div class="pv-mm" id="pv_mm">-</div>
+            <div><span class="pv-tag" id="pv_tag"></span></div>
+            <ul class="pv-list" id="pv_list"></ul>
+            <div class="pv-note">厚度为常规参考值（同克重不同品牌略有差异），实际手感以打样为准。</div>
+          </div>
+        </div>
+        <div id="b_extras_wrap" style="margin-top:14px">
+          <label>附加工艺（可多选）</label>
+          <div class="chips" id="b_extras"></div>
+          <div class="reqline extras-note" id="b_extras_note"></div>
+        </div>
+      </div>
+
+      <!-- 数量与分校区 -->
+      <div class="group">
+        <div class="gt">数量与分校区</div>
+        <div class="form four">
+          <div><label id="b_qty_label">送印总数量</label><input id="b_qty" type="number" min="1" value="200"><div class="reqline" id="b_qty_note"></div></div>
+          <div><label>是否需要分校区</label><select id="b_split"><option>否</option><option>是</option></select>
+            <div class="reqline" id="b_split_note">如无需分校区，默认统一送至华新服务中心</div></div>
+        </div>
+        <div class="campus-box" id="campusBox">
+          <div class="t" id="campusTip">分校区明细 —— 填写各校区数量，留空表示该校区本次不送；合计会自动写入「送印总数量」</div>
+          <div class="campus-grid" id="campusGrid"></div>
+          <div class="sumline" id="campusSum">校区合计：0 本</div>
+        </div>
+      </div>
+
+      <!-- 印刷要求 -->
+      <div class="group">
+        <div class="gt">印刷要求</div>
+        <div><label>印刷要求（自动带出，可手改）</label><input id="b_req" placeholder="如：封面彩色，内页黑白，A4，双面"></div>
+      </div>
+
+      <div class="btn-row">
+        <button class="primary" id="btnCalc">计算价格</button>
+        <button class="ghost" id="btnAddBatch">加入清单</button>
+        <div class="spacer"></div>
+        <span class="hint" style="margin:0">先算价再入单，金额自动带入清单</span>
+      </div>
+
+      <!-- 算价结果 -->
+      <div class="result hidden" id="resBox">
+        <div class="big">
+          <div class="hi"><span id="r_unit_label">单本价格（元）</span><b id="r_unit">-</b></div>
+          <div><span>总价格（元）</span><b id="r_total">-</b></div>
+          <div class="book-only-metric"><span>内页单价（元/面）</span><b id="r_ui">-</b></div>
+          <div class="book-only-metric"><span>封面单价（元/本）</span><b id="r_uc">-</b></div>
+        </div>
+        <div class="detail" id="r_detail"></div>
+      </div>
+      </div><!-- /hand-body 手动填写送印单 -->
+
+      <div class="msg" id="calcMsg"></div>
+
+      <!-- 导入送印项：放在手写单下方，导入的文件自动填入上面的手写单逐条处理 -->
+      <div class="hand-split"></div>
+      <div class="imp-bar" id="impBar">
+        <div class="imp-drop" id="impDrop" role="button" tabindex="0" title="点击选择整个文件夹（含子文件夹）">
+          <div class="imp-drop-ic">📁</div>
+          <div class="imp-drop-tx">
+            <b>导入送印项 —— 选择文件夹，自动填入上面的「手动填写送印单」</b>
+            <span>自动识别 PDF / Word（.doc / .docx）/ WPS 文字（.wps）并读取页数；用文件名做资料名、文件夹名里的年级自动识别。多个文件会逐条引导填写</span>
+          </div>
+          <div class="imp-drop-btns">
+            <button class="primary" id="btnImportDir" type="button">选择文件夹</button>
+          </div>
+        </div>
+        <div class="imp-tip" id="impBarTip">点按钮或虚线框选一个文件夹，里面的子目录会一起读。读到的文件会自动填入上面的手写送印单：文件名＝资料名，文件名/文件夹里的年级（如「三年级」）会自动识别，页数会自动填入面数。图片、PPT、txt 不会加入。</div>
+        <div class="imp-resume hidden" id="impResume">
+          <span id="impResumeTx"></span>
+          <div class="imp-resume-btns">
+            <button type="button" class="mini" id="btnImpResume">展开导入预览</button>
+            <button type="button" class="mini danger" id="btnImpClear">清空导入</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 导入预览面板：新流程已停用（文件直接填入手写单），保留节点仅为兼容旧引用，永不可见 -->
+      <div class="imp-box hidden" id="impBox" style="display:none!important">
+        <div class="imp-hd">
+          <b>导入预览</b><span class="hint" style="margin:0" id="impMeta"></span>
+          <div class="spacer"></div>
+          <button type="button" class="mini" id="btnImpCancel" title="只折叠面板，已导入的内容不会丢">收起预览</button>
+        </div>
+        <div class="imp-diag" id="impDiag" hidden></div>
+        <div class="imp-note" id="impNote"></div>
+        <!-- 本批印刷规格：必须先确认，否则不按默认价直接入单 -->
+        <div class="imp-spec" id="impSpec">
+          <div class="imp-spec-l">
+            <b id="impSpecTitle">本批印刷规格 —— 请先确认，价格按此计算</b>
+            <div class="imp-spec-chips" id="impSpecChips"></div>
+            <div class="imp-spec-tip" id="impSpecTip">导入的数据不会自带规格，默认值不等于你要的价。先点「修改规格」选好，再点「按此规格计价」。</div>
+          </div>
+          <div class="imp-spec-r">
+            <button type="button" class="mini hidden" id="btnSpecClearRows">全部行恢复跟随本批</button>
+            <button type="button" class="mini" id="btnSpecEdit">修改规格</button>
+            <button type="button" class="primary" id="btnSpecOk" style="padding:6px 12px;font-size:12px">按此规格计价 ✓</button>
+          </div>
+          <!-- 原地展开的规格编辑区：不跳转，就在预览面板里改 -->
+          <div class="imp-spec-editor" id="impSpecEditor"></div>
+        </div>
+        <div class="imp-scroll">
+        <table class="imp-table"><thead><tr>
+          <th>#</th><th>年级</th><th>资料名称 / 版本</th><th>数量</th><th>分校区</th><th>面数</th><th>状态</th><th>规格</th><th>删</th>
+        </tr></thead><tbody id="impTbody"></tbody></table>
+        </div>
+        <div class="imp-foot">
+          <button class="primary" id="btnImpAdd" disabled>全部计算并加入清单</button>
+          <span class="hint" style="margin:0">数量、分校区、面数在此直接改；规格默认按上方「本批印刷规格」，个别行不同就点该行「规格」单独设置；不要的行点 ✕ 删除</span>
+        </div>
+      </div>
+      <input type="file" id="filePdf" accept=".pdf,application/pdf" hidden>
+      <input type="file" id="fileDir" webkitdirectory directory multiple hidden>
+    </div>
+
+    <!-- 已加入清单 -->
+    <div class="card">
+      <div class="card-hd">
+        <h2>已加入的送印项</h2>
+        <div class="sumchips" id="batchSum"></div>
+      </div>
+      <div class="tbl-wrap">
+        <table id="batchTable"><thead><tr>
+          <th>#</th><th>送印人</th><th>科目</th><th>年级</th><th>版本</th><th>项目</th>
+          <th>面数</th><th>数量</th><th>分校区</th><th>供应商</th><th class="num">单本价</th>
+          <th class="num">小计（元）</th><th></th>
+        </tr></thead><tbody></tbody></table>
+      </div>
+
+      <div class="btn-row">
+        <button class="ghost" id="btnCopy">复制到在线表格</button>
+        <button class="ghost" id="btnExport">导出 Excel</button>
+        <button class="ghost" id="btnExportXls">导出 .xls 兜底</button>
+        <div class="spacer"></div>
+        <button class="ghost" id="btnSaveBatch">保存到本机记录</button>
+        <button class="danger" id="btnClearBatch">清空清单</button>
+      </div>
+      <div class="msg" id="batchMsg"></div>
+    </div>
+  </section>
+
+  <!-- ============ 本机记录 ============ -->
+  <section id="t-records" class="hidden">
+    <div class="card">
+      <div class="card-hd">
+        <h2>本机送印记录</h2>
+        <span class="hint" style="margin:0">记录存在本机浏览器，各自电脑独立</span>
+      </div>
+      <div class="btn-row" style="margin-top:0">
+        <button class="ghost" id="btnRefreshRec">刷新</button>
+        <button class="ghost" id="btnCopyRec">复制表格</button>
+        <button class="ghost" id="btnExportRec">导出 Excel</button>
+        <div class="spacer"></div>
+        <button class="danger" id="btnClearRec">清空本机记录</button>
+      </div>
+      <div class="tbl-wrap" style="margin-top:14px">
+        <table id="recTable"><thead><tr>
+          <th>#</th><th>日期</th><th>资料名称</th><th>供应商</th><th>内页类型</th><th>面数</th>
+          <th>数量</th><th class="num">单本价</th><th class="num">总价</th><th></th>
+        </tr></thead><tbody></tbody></table>
+      </div>
+      <div class="msg" id="recMsg"></div>
+    </div>
+  </section>
+
+  <!-- ============ 价格参数（仅管理员） ============ -->
+  <section id="t-prices" class="hidden">
+    <div class="card">
+      <h2>书刊类价格（书本 / 试卷）</h2>
+      <div class="lockbar" id="lockBar" style="margin-top:14px">
+        <span id="lockText">当前为<b>只读模式</b>：价格已内置并签名锁定，改价需管理员密码。</span>
+        <button class="sm" id="btnLogin2">管理员登录后可修改</button>
+      </div>
+      <div class="tbl-wrap">
+        <table id="priceTable"><thead><tr>
+          <th>ID</th><th>供应商</th><th>类别</th><th>项目</th><th>单位</th>
+          <th>标准价 / 200-499本</th><th>优惠价 / 500-1000本</th><th>≥1000本</th><th>备注</th>
+        </tr></thead><tbody></tbody></table>
+      </div>
+      <div class="hint">书本：封面 / 内页 / 附加工艺；试卷：印刷面单价 + 钉装费。两家供应商各自独立，互不影响。</div>
+    </div>
+
+    <div class="card">
+      <h2>印刷品与物料价格（按纸张 / 规格）</h2>
+      <div class="hint" style="margin-top:6px">一行 = 一个「品类 + 供应商 + 纸张规格」。档位按「数量≥」自动取价，留空表示该档不用；<b>起订量</b>以下的订单不允许算价。
+        需要新增纸张时，把某行「待补报价」的规格名改成需要的纸张（如 250克铜版纸），再填价格即可。</div>
+      <div class="tbl-wrap" style="margin-top:12px">
+        <table id="goodsTable"><thead><tr>
+          <th>品类</th><th>供应商</th><th>纸张 / 规格</th><th>单位</th><th>起订量</th>
+          <th>档1（≥数量 / 单价）</th><th>档2</th><th>档3</th><th>档4</th><th>备注</th>
+        </tr></thead><tbody></tbody></table>
+      </div>
+      <div class="btn-row" id="adminBtns" style="display:none">
+        <button id="btnSavePrices">保存价格（本机生效）</button>
+        <button class="ghost" id="btnGenFile">生成新版文件（用于转发）</button>
+        <button class="ghost" id="btnResetPrices">恢复出厂价格</button>
+      </div>
+      <div class="msg" id="priceMsg"></div>
+      <div class="hint">改价后建议点「生成新版文件」，把新文件发给同事，他们打开才会用上新价格。</div>
+    </div>
+  </section>
+</main>
+
+<!-- 管理员登录 -->
+<div class="modal" id="modal">
+  <div class="box">
+    <h3 id="mTitle">管理员登录</h3>
+    <div id="mLogin">
+      <div style="margin-bottom:12px"><label>管理员密码</label><input id="m_pwd" type="password"></div>
+      <div class="btn-row" style="margin-top:0">
+        <button id="mLoginBtn">登录</button>
+        <button class="ghost" id="mCancel">取消</button>
+      </div>
+    </div>
+    <div id="mPwdBox" class="hidden">
+      <div style="margin-bottom:12px"><label>原密码</label><input id="m_old" type="password"></div>
+      <div><label>新密码（至少6位）</label><input id="m_new" type="password"></div>
+      <div class="btn-row">
+        <button id="mPwdBtn">确认修改</button>
+        <button class="ghost" id="mLogout">退出登录</button>
+        <button class="ghost" id="mCancel2">关闭</button>
+      </div>
+    </div>
+    <div class="msg err" id="mMsg"></div>
+  </div>
+</div>
+
+<script>
+/* ===================== 状态 ===================== */
+const $ = s => document.querySelector(s);
+const SUPPLIERS = ["衡阳本地","广东印刷厂"];
+const COVERS = {
+  "衡阳本地": ["250克铜板+哑膜+胶装","157克铜板+哑膜+胶装","230克高阶细格+打钉+胶装","250克铜板+哑膜+骑马钉"],
+  "广东印刷厂": ["250克铜板+哑膜+胶装","157克铜板+哑膜+胶装","230克高阶细格+打钉+胶装","250克铜板+哑膜+骑马钉"]
+};
+const INNERS = ["黑白","彩色","彩色100克高白"];
+const EXTRAS_BOOK = ["全书80克骑马钉","横版A4","横版A3","刷胶工艺"];
+
+let PRICES = JSON.parse(JSON.stringify(PRICE_DATA));   // 当前生效：书刊类
+let GOODS  = JSON.parse(JSON.stringify(GOODS_DATA));   // 当前生效：印刷品/物料
+let ADMIN = false;
+let BATCH = [];
+let RECORDS = [];
+
+const LS_PRICES="sy_prices_v2", LS_REC="sy_records_v1", LS_PWD="sy_adminhash_v1";
+function lsGet(k,d){ try{ const v=localStorage.getItem(k); return v?JSON.parse(v):d; }catch(e){ return d; } }
+function lsSet(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} }
+
+/* ===================== 完整性校验 ===================== */
+function checkIntegrity(){
+  const builtinOK = signPrices(PRICE_DATA, GOODS_DATA) === PRICE_SIG;
+  const local = lsGet(LS_PRICES, null);
+  /* 出厂基线：换了新版本文件（PRICE_SIG 变了）就丢弃旧的本地价格缓存，
+     确保本次调价一定生效；管理员在当前版本内改价保存则不受影响 */
+  if(lsGet("sy_builtin_sig","") !== PRICE_SIG){
+    localStorage.removeItem(LS_PRICES);
+    localStorage.removeItem("sy_psig_v2");
+    lsSet("sy_builtin_sig", PRICE_SIG);
+  }else if(local && Array.isArray(local.p) && Array.isArray(local.g)
+     && lsGet("sy_psig_v2","") === signPrices(local.p, local.g)){
+    PRICES = local.p; GOODS = local.g;
+  }
+  const el = $("#sigState");
+  if(builtinOK){
+    el.textContent = "价格校验通过（未来教育）";
+    el.className = "pill"; el.style.background = "#3E7A3E"; el.style.borderColor = "#3E7A3E";
+    $("#tamper").style.display = "none";
+  }else{
+    el.textContent = "价格校验未通过";
+    el.className = "pill locked";
+    $("#tamper").style.display = "block";
+  }
+}
+
+/* ===================== 算价核心 ===================== */
+function pick(supplier, kind, keyword){
+  return PRICES.find(p => p.supplier===supplier && p.kind===kind && p.name.indexOf(keyword)>=0);
+}
+function calcOne(o){
+  const {supplier, cover, inner_type:it, pages, qty, split_campus:split} = o;
+  let unit_inner, unit_cover, tier, notes=[];
+  if(supplier === "衡阳本地"){
+    if(qty < 200){
+      /* 衡阳低于200本：协议价，不分校区（黑白0.035/彩色0.15/封面3元） */
+      const nm = (it === "黑白") ? "协议价-黑白" : "协议价-彩色";
+      const row = pick(supplier,"内页",nm);
+      if(!row || row.a==null) throw new Error("未找到协议价内页："+nm);
+      unit_inner = row.a;
+      tier = "衡阳协议价（低于200本，不分校区）";
+      if(it === "彩色100克高白") notes.push("衡阳彩色100克高白按彩色协议价计算");
+      const pc = pick(supplier,"封面","协议价-彩色封面");
+      if(!pc || pc.a==null) throw new Error("未找到衡阳协议价封面");
+      unit_cover = pc.a;
+    }else{
+      const nm = (it === "黑白") ? "黑白80克" : "彩色80克";
+      const row = pick(supplier,"内页",nm);
+      if(!row || row.a==null) throw new Error("未找到内页价格："+supplier+" "+nm);
+      unit_inner = row.a;
+      tier = "衡阳标准价（200-499本档）";
+      if(it === "彩色100克高白") notes.push("衡阳暂无100克高白报价，按彩色80克价计算");
+      if(qty>=500 && row.b!=null){ unit_inner = row.b; tier = "衡阳500-1000本档"; }
+      const crow = pick(supplier,"封面",cover);
+      if(!crow) throw new Error("未找到封面价格："+cover);
+      unit_cover = (qty>=500 && crow.b!=null) ? crow.b : crow.a;
+      if(unit_cover==null) throw new Error("衡阳封面「"+cover+"」骏马未报价，请到「价格参数」补录");
+    }
+  }else{
+    if(qty <= 200){
+      /* 广东低于200本（含200）：不分校区统一协议价；10-50本a档、51-200本b档；封面协议价1.8元 */
+      const nm = (it === "黑白") ? "协议价-黑白" : "协议价-彩色";
+      const row = pick(supplier,"内页",nm);
+      if(!row) throw new Error("未找到协议价："+nm);
+      unit_inner = (qty <= 50 || row.b==null) ? row.a : row.b;
+      tier = qty <= 50 ? "协议价（10-50本，不分校区）" : "协议价（51-200本，不分校区）";
+      const pc = pick(supplier,"封面","协议价-彩色封面");
+      if(!pc || pc.a==null) throw new Error("未找到广东协议价封面");
+      unit_cover = (qty <= 50 || pc.b==null) ? pc.a : pc.b;
+    }else{
+      const nm = it==="黑白" ? "黑白80克" : (it==="彩色" ? "彩色80克" : "彩色100克高白");
+      const row = pick(supplier,"内页",nm);
+      if(!row) throw new Error("未找到内页价格："+nm);
+      unit_inner = (qty>=1000 ? row.c : (qty>=500 ? row.b : row.a));
+      if(unit_inner==null) unit_inner = row.b!=null?row.b:row.a;
+      tier = qty>=1000 ? "同款≥1000本档（每面减0.2分）" : (qty>=500 ? "500-1000本档" : "200-499本档");
+      const crow = pick(supplier,"封面",cover);
+      if(!crow) throw new Error("未找到封面价格："+cover);
+      unit_cover = qty>=500 ? crow.b : crow.a;
+    }
+  }
+  if(o.size === "A3"){ unit_inner = unit_inner * 2; notes.push("A3 尺寸：内页单价按 A4 双倍计价"); }
+  let extra = 0;
+  (o.extras||[]).forEach(ex=>{
+    const r = pick(supplier,"附加",ex);
+    if(!r) return;
+    if(ex==="全书80克骑马钉") extra += (qty>1000 ? r.b : r.a)||0;
+    else if(ex==="试卷左上角钉装") extra += (r.a||0)*pages;
+    else extra += r.a||0;
+  });
+  const unit_price = Math.round((unit_inner*pages + unit_cover + extra)*10000)/10000;
+  return {
+    unit_inner: Math.round(unit_inner*100000)/100000,
+    unit_cover, extra_per_book: Math.round(extra*10000)/10000,
+    unit_price, total: Math.round(unit_price*qty*100)/100,
+    tier_desc: tier, notes,
+    lead_time: supplier==="衡阳本地" ? "约1-3天送达" : "淡季2-3天 / 旺季3-6天"
+  };
+}
+
+/* ===================== 通用 ===================== */
+function fmt(n,d=2){ return (n==null||n==="")?"-":Number(n).toFixed(d); }
+/* 单价：≥1 元保留两位；不足 1 元最多四位并去掉末尾 0（0.096 / 0.0256） */
+function fmtUnit(v){
+  if(v==null||v===""||isNaN(v)) return "-";
+  const n=Number(v);
+  if(n>=1) return n.toFixed(2);
+  return n.toFixed(4).replace(/0+$/,"").replace(/\.$/,"");
+}
+function setMsg(sel,t,c){ const el=$(sel); el.textContent=t||""; el.className="msg"+(c?" "+c:""); }
+function fillSelect(sel,arr,keep){ const old=keep?sel.value:null;
+  sel.innerHTML=arr.map(v=>`<option value="${v}">${v}</option>`).join("");
+  if(old&&arr.includes(old)) sel.value=old; }
+function fillOpt(sel, arr, blankLabel){
+  sel.innerHTML = [`<option value="">${blankLabel || "（请选择）"}</option>`]
+    .concat(arr.map(v=>`<option>${v}</option>`)).join("");
+}
+function supNoteFor(){
+  const box = $("#b_sup_note");
+  if(box) box.textContent = SUP_NOTE[$("#b_supplier").value] || "";
+}
+function bindSupplier(s,c){
+  s.innerHTML = SUPPLIERS.map(x=>`<option>${x}</option>`).join("");
+  const sync = ()=>{ fillSelect(c, COVERS[s.value], true); supNoteFor(); autoReq(); checkArrive(); refreshItemUI(); };
+  s.addEventListener("change", sync); sync();
+}
+
+const SUP_NOTE = {
+  "衡阳本地":   "⏱ 1-3 天送达 —— 急件选这家",
+  "广东印刷厂": "⏱ 到货 3-5 天 —— 不急更省钱"
+};
+const CAMPUSES = ["常胜东路校区","雁蒸大厦校区","沐林美郡校区","银泰红城校区","华新金化校区","金港水岸校区",
+                  "御笔华章校区","喜富来校区","中建大厦校区","华瑞园校区","石鼓服务中心","华新服务中心"];
+const SUBJECTS = ["人文素养","逻辑思维","科学思维","科学实验"];
+const GRADES = ["小学","初中","高中","一年级","二年级","三年级","四年级","五年级","六年级",
+                "初一","初二","初三","高一","高二","高三"];
+const BOOKTYPES = ["教材","补充练习册","汇编","真题汇编","知识点手册","试卷","其他"];
+
+/* ---------- 印刷项目：只决定录入方式，价格全部来自「价格参数」 ---------- */
+const ITEM_BOOK = "书本（教材/练习册/汇编）";
+function itemType(){ return $("#b_itemtype").value; }
+function itemMode(){
+  const it = itemType();
+  if(it === ITEM_BOOK) return "book";
+  if(it === "试卷") return "exam";
+  return "goods";
+}
+function isBook(){ return itemMode() === "book"; }
+
+/* ---------- 印刷品/物料取价 ---------- */
+function goodsRows(item, supplier){
+  return GOODS.filter(g=>g.item===item && g.supplier===supplier);
+}
+function currentGoodsRow(){
+  if(itemMode() !== "goods") return null;
+  const rows = goodsRows(itemType(), $("#b_supplier").value);
+  if(!rows.length) return null;
+  const pickPaper = $("#b_paper") ? $("#b_paper").value : "";
+  return rows.find(r=>r.paper===pickPaper) || rows[0];
+}
+function unitWord(row){
+  if(!row) return "件";
+  return String(row.unit || "元/件").replace(/^元\//,"");
+}
+function tierOf(row, qty){
+  const ts = (row && row.tiers ? row.tiers : []).filter(t=>Array.isArray(t) && t.length===2)
+    .slice().sort((a,b)=>a[0]-b[0]);
+  if(!ts.length) return null;
+  let hit = null;
+  ts.forEach(t=>{ if(qty >= t[0]) hit = t; });
+  return hit;
+}
+function currentQty(){
+  return splitOn() ? campusTotal() : (parseInt($("#b_qty").value,10) || 0);
+}
+
+/* ---------- 印刷项目切换 ---------- */
+function refreshItemUI(){
+  const mode = itemMode(), book = mode==="book", exam = mode==="exam";
+  document.querySelectorAll(".book-only").forEach(el=>el.classList.toggle("hidden", !book));
+  $("#b_pages_wrap").classList.toggle("hidden", !(book || exam));
+  $("#dzPages").classList.toggle("hidden", !(book || exam));
+  document.querySelectorAll(".nonbook-only").forEach(el=>el.classList.toggle("hidden", book));
+  $("#b_pages_label").textContent = exam ? "面数（面/份）" : "内页面数（面/本）";
+  $("#b_size_note").textContent = ($("#b_size").value === "A3") ? "A3 按内页单价 ×2 计价" : "";
+  if(mode === "exam") syncExamUnit();
+  else if(mode === "goods") syncGoods();
+  else { const u=$("#b_unitprice"); u.value=""; u.dataset.auto="1"; }
+  renderExtras();
+  updateQtyNote();
+  renderPaperVis();
+  autoReq();
+}
+/* 试卷：印刷面单价 + 钉装费（均可在价格参数里改） */
+function syncExamUnit(){
+  const sup = $("#b_supplier").value;
+  const pr = pick(sup,"试卷","印刷面单价"), bd = pick(sup,"试卷","钉装费");
+  const u = $("#b_unitprice");
+  $("#b_unit_label").textContent = "印刷面单价（元/面）";
+  u.dataset.auto = "1";
+  u.value = pr && pr.a!=null ? pr.a : "";
+  $("#b_unit_note").textContent =
+    `黑白印刷 ${pr && pr.a!=null?pr.a:"待填"} 元/面 ＋ 钉装 ${bd && bd.a!=null?bd.a:"待填"} 元/面（可在「价格参数」中修改）`;
+}
+/* 印刷品/物料：按 供应商 + 纸张规格 取价 */
+function syncGoods(){
+  const rows = goodsRows(itemType(), $("#b_supplier").value);
+  const sel = $("#b_paper"), keep = sel.value;
+  sel.innerHTML = rows.map(r=>`<option>${r.paper}</option>`).join("");
+  $("#b_paper_wrap").classList.toggle("hidden", rows.length === 0);
+  if(rows.length && rows.some(r=>r.paper===keep)) sel.value = keep;
+  $("#b_unit_label").textContent = rows.length ? `单价（${rows[0].unit}）` : "单价（元/件）";
+  $("#b_unitprice").dataset.auto = "1";
+  applyGoodsPrice();
+}
+function applyGoodsPrice(){
+  if(itemMode() !== "goods") return;
+  const el = $("#b_unitprice"), note = $("#b_unit_note");
+  const row = currentGoodsRow();
+  if(!row){
+    if(el.dataset.auto !== "0") el.value = "";
+    note.textContent = "该供应商此品类未录入报价，请手填单价（可在「价格参数」中补录）";
+    return;
+  }
+  const q = currentQty(), ts = row.tiers || [], word = unitWord(row);
+  if(!ts.length){
+    if(el.dataset.auto !== "0") el.value = "";
+    note.textContent = `${row.paper}：暂无报价${row.note?"（"+row.note+"）":""}，请手填`;
+    return;
+  }
+  const hit = tierOf(row, q);
+  if(hit && el.dataset.auto !== "0") el.value = +Number(hit[1]).toFixed(4);
+  note.textContent = hit
+    ? `${row.paper}：≥${hit[0]} ${word} 档 ${hit[1]} ${row.unit}` + (row.moq>1 ? `（起订 ${row.moq} ${word}）` : "")
+    : `${row.paper}：数量未达最低档 ${ts[0][0]} ${word}，单价请手填`;
+}
+/* ---------- 纸张厚度示意 ---------- */
+const PV_REF_COPY = 0.087;   // 70 克复印纸（双胶纸）
+const PV_REF_CARD = 0.29;    // 300 克名片
+const PV_GRADES   = [70,105,128,157,200,250,300];
+const PV_BULK = [            // 每克对应的厚度（mm/g）
+  {re:/白卡/,                  k:0.00112},
+  {re:/铜/,                    k:0.00096},
+  {re:/皮纹|细格|艺术|特种/,    k:0.00113},
+  {re:/双胶|复印|内页|书写|高白|胶版/, k:0.00124}
+];
+function pvGram(name){
+  const m = String(name||"").match(/(\d{2,4})\s*(?:克|g|G)(?![a-zA-Z])/);
+  return m ? parseInt(m[1],10) : null;
+}
+function pvThick(name){
+  const g = pvGram(name);
+  if(!g) return null;
+  let k = 0.00105;
+  for(const b of PV_BULK){ if(b.re.test(name)){ k = b.k; break; } }
+  return { g:g, mm:+(g*k).toFixed(2), name:name };
+}
+function pvFeel(mm){
+  if(mm < 0.10)  return {tag:"很薄 · 偏软",    use:"大批量内部资料、报纸式单页"};
+  if(mm < 0.14)  return {tag:"偏薄 · 轻便",    use:"常规传单，双面印刷不易透墨"};
+  if(mm < 0.19)  return {tag:"适中 · 挺括",    use:"单页宣传单、三折页的常用选择"};
+  if(mm < 0.26)  return {tag:"厚实 · 有分量",  use:"高档单页、小海报、折页封面"};
+  if(mm < 0.33)  return {tag:"硬挺 · 卡片级",  use:"卡片式宣传单、封面、吊牌"};
+  return {tag:"很硬 · 不能折",  use:"名片、卡片类，不适宜折叠"};
+}
+function pvCompare(mm){
+  const out = [], r = mm / PV_REF_COPY;
+  out.push(`100 张叠起来约 <b>${Math.round(mm*100)} 毫米</b>（${(mm*10).toFixed(1)} 厘米）`);
+  if(r < 0.85)      out.push("比 1 张 70 克复印纸还薄一点");
+  else if(r < 1.15) out.push("差不多就是 1 张 70 克复印纸的厚度");
+  else              out.push(`≈ <b>${r.toFixed(1)} 张</b> 70 克复印纸叠起来`);
+  const pct = Math.round(mm / PV_REF_CARD * 100);
+  if(pct >= 95 && pct <= 108) out.push("厚度和一张名片（300 克）相当");
+  else out.push(`≈ 名片（300 克）厚度的 <b>${pct}%</b>`);
+  return out;
+}
+function pvSvg(sel){
+  const S = 300, baseY = 152, x0 = 58, bw = 30, gap = 14;
+  const list = PV_GRADES.slice();
+  if(sel && list.indexOf(sel.g) < 0){ list.push(sel.g); list.sort((a,b)=>a-b); }
+  const mmOf = g => (g === 70) ? 0.09 : +(g * 0.00096).toFixed(2);
+  const w = x0 + list.length*(bw+gap) + 8, h = 154;
+  let out = "";
+  /* 刻度尺 */
+  for(let i=0;i<=6;i++){
+    const t = i*0.05, yy = baseY - t*S, major = (Math.round(t*100) % 10 === 0);
+    out += `<line x1="${major?34:40}" y1="${yy.toFixed(1)}" x2="47" y2="${yy.toFixed(1)}"`
+         + ` stroke="${major?"#C6D3E8":"#E4EBF7"}" stroke-width="1"/>`;
+    if(major && i>0)
+      out += `<text x="30" y="${(yy+3).toFixed(1)}" text-anchor="end" font-size="8.5" fill="#9AA4B5">${t.toFixed(1)}</text>`;
+  }
+  out += `<text x="6" y="52" font-size="9" fill="#9AA4B5">mm</text>`;
+  out += `<line x1="34" y1="${baseY}" x2="${w-6}" y2="${baseY}" stroke="#C2D1E8" stroke-width="1"/>`;
+  /* 纸条 */
+  list.forEach((g,i)=>{
+    const x = x0 + i*(bw+gap), mm = mmOf(g), hh = Math.max(5, mm*S), y = baseY - hh;
+    const on = sel && g === sel.g;
+    const cF = on ? "#3B6FD4" : "#CBDCF4",
+          cT = on ? "#7CA1E6" : "#E8F0FB",
+          cS = on ? "#2A55B0" : "#B2C7E8";
+    out += `<polygon points="${x},${y.toFixed(1)} ${x+6},${(y-5).toFixed(1)} ${x+bw+6},${(y-5).toFixed(1)} ${x+bw},${y.toFixed(1)}" fill="${cT}"/>`
+         + `<rect x="${x}" y="${y.toFixed(1)}" width="${bw}" height="${hh.toFixed(1)}" fill="${cF}"/>`
+         + `<polygon points="${x+bw},${y.toFixed(1)} ${x+bw+6},${(y-5).toFixed(1)} ${x+bw+6},${(y+hh-5).toFixed(1)} ${x+bw},${(y+hh).toFixed(1)}" fill="${cS}"/>`
+         + `<text x="${x+bw/2+2}" y="${(baseY+15)}" text-anchor="middle" font-size="10"`
+         + ` fill="${on?"#2F5CB5":"#8A94A6"}" font-weight="${on?700:400}">${g}g</text>`
+         + `<text x="${x+bw/2+2}" y="${(y-12).toFixed(1)}" text-anchor="middle" font-size="9.5"`
+         + ` fill="${on?"#2F5CB5":"#AEB9CB"}" font-weight="${on?700:400}">${mm.toFixed(2)}</text>`;
+  });
+  return `<svg viewBox="0 30 ${w} ${h}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="纸张厚度示意">${out}</svg>`;
+}
+function renderPaperVis(){
+  const box = $("#paper_vis"); if(!box) return;
+  const mode = itemMode();
+  let name = "";
+  if(mode === "goods") name = ($("#b_paper") && $("#b_paper").value) || "";
+  else if(mode === "book") name = $("#b_cover") ? $("#b_cover").value : "";
+  const info = name ? pvThick(name) : null;
+  if(!info){ box.classList.add("hidden"); return; }
+  box.classList.remove("hidden");
+  const feel = pvFeel(info.mm);
+  $("#pv_name").textContent = name;
+  $("#pv_mm").innerHTML = `${info.mm.toFixed(2)}<span>mm（毫米）</span>`;
+  $("#pv_tag").textContent = feel.tag;
+  $("#pv_list").innerHTML =
+    pvCompare(info.mm).map(s=>`<li>· ${s}</li>`).join("") +
+    `<li>· 常见用途：${feel.use}</li>`;
+  $("#pv_chart").innerHTML = pvSvg(info);
+}
+
+/* 当前品类的数量量词：本 / 张 / 份 / 个 */
+function qtyWord(){
+  const mode = itemMode();
+  if(mode === "goods"){ const r = currentGoodsRow(); return r ? unitWord(r) : "件"; }
+  return mode === "exam" ? "份" : "本";
+}
+function updateQtyNote(){
+  const q = $("#b_qty"), note = $("#b_qty_note"), lab = $("#b_qty_label");
+  const mode = itemMode();
+  const word = qtyWord();
+  lab.textContent = `送印总数量（${word}）`;
+
+  const campusOn = splitOn() || campusTotal() > 0;   // 分校区，或不分校区但指定了 1 个校区
+  const total = campusTotal();
+  const row = mode === "goods" ? currentGoodsRow() : null;
+  const moq = row ? (row.moq || 1) : 1;
+  const cur = campusOn ? total : (parseInt(q.value,10) || 0);
+  if(campusOn || moq <= 1) q.removeAttribute("min"); else q.min = moq;
+
+  /* 起订量优先提醒（分校区汇总之和同样受起订量约束） */
+  if(moq > 1 && cur > 0 && cur < moq){
+    note.className = "reqline warnline";
+    note.textContent = `⚠ ${itemType()}起订 ${moq} ${word}，当前 ${cur} ${word}，低于起订量厂家不接单`;
+    return;
+  }
+  note.className = "reqline";
+  if(campusOn){
+    note.textContent = total > 0
+      ? (splitOn() ? "由校区明细自动汇总，不可手改" : "由所填校区数量自动带出，不可手改")
+      : "请先在下方填写各校区数量";
+    return;
+  }
+  note.textContent = moq > 1 ? `起订量 ${moq} ${word}` : "";
+}
+
+function renderExtras(){
+  const wrap = $("#b_extras_wrap");
+  wrap.classList.toggle("hidden", !isBook());
+  if(!isBook()){ $("#b_extras").innerHTML = ""; $("#b_extras_note").textContent = ""; return; }
+  const checked = extras();
+  $("#b_extras").innerHTML = EXTRAS_BOOK.map(e=>
+    `<label class="chip"><input type="checkbox" value="${e}"${checked.includes(e)?" checked":""}><span>${e}</span></label>`).join("");
+  /* 无封面骑马钉：按当前供应商显示实际钉装费，避免选错 */
+  const sup = $("#b_supplier").value;
+  const r = pick(sup, "附加", "全书80克骑马钉");
+  const note = $("#b_extras_note");
+  if(!r){ note.textContent = ""; return; }
+  const same = r.a === r.b;
+  note.innerHTML = same
+    ? `${sup} · 无封面骑马钉钉装费 <b>${fmtUnit(r.a)} 元/本</b>（不分数量档）`
+    : `${sup} · 无封面骑马钉钉装费 <b>${fmtUnit(r.a)} 元/本</b>（1000 本以上 ${fmtUnit(r.b)} 元/本）`;
+}
+function extras(){
+  return Array.from(document.querySelectorAll("#b_extras input:checked")).map(x=>x.value);
+}
+/* ---------- 分校区明细 ---------- */
+function splitOn(){ return $("#b_split").value === "是"; }
+function buildCampusGrid(){
+  $("#campusGrid").innerHTML = CAMPUSES.map((c,i)=>
+    `<div class="ci"><label title="${c}">${c}</label><input id="bc_${i}" type="number" min="0" step="1" placeholder="—"></div>`).join("");
+  CAMPUSES.forEach((c,i)=>$("#bc_"+i).addEventListener("input", syncCampus));
+}
+function campusValues(){
+  const o = {};
+  CAMPUSES.forEach((c,i)=>{
+    const el = $("#bc_"+i);
+    if(!el) return;                       // 网格尚未渲染（init 早期会被 updateQtyNote 调用）
+    const v = parseInt(el.value,10);
+    if(v>0) o[c]=v;
+  });
+  return o;
+}
+function campusTotal(){ return Object.values(campusValues()).reduce((a,b)=>a+b,0); }
+function syncCampus(){
+  const on = splitOn();
+  $("#campusBox").classList.remove("hidden");
+
+  /* 不分校区：只允许填 1 个校区；多填时保留第一个 */
+  let trimmed = false;
+  if(!on){
+    const filled = [];
+    CAMPUSES.forEach((c,i)=>{ if((parseInt($("#bc_"+i).value,10)||0) > 0) filled.push(i); });
+    if(filled.length > 1){
+      filled.slice(1).forEach(i=>{ $("#bc_"+i).value = ""; });
+      trimmed = true;
+    }
+  }
+
+  const cv = campusValues(), t = campusTotal(), n = Object.keys(cv).length;
+  const lockIdx = (!on && n > 0) ? CAMPUSES.indexOf(Object.keys(cv)[0]) : -1;
+
+  /* 锁定其余校区 */
+  CAMPUSES.forEach((c,i)=>{
+    const inp = $("#bc_"+i), ci = inp.parentElement;
+    const lock = lockIdx >= 0 && i !== lockIdx;
+    inp.disabled = lock;
+    inp.placeholder = lock ? "已锁定" : "—";
+    ci.classList.toggle("locked", lock);
+  });
+
+  /* 合计行 / 提示语 */
+  const sum = $("#campusSum"), note = $("#b_split_note"), tip = $("#campusTip");
+  const word = qtyWord();
+  sum.className = "sumline";
+  if(on){
+    tip.textContent = "分校区明细 —— 填写各校区数量，留空表示该校区本次不送；合计会自动写入「送印总数量」";
+    sum.textContent = "校区合计：" + t + " " + word + (n ? `（${n} 个校区）` : "");
+    note.textContent = "已按下方各校区明细分别送货";
+  }else if(lockIdx >= 0){
+    tip.textContent = "不分校区 —— 已指定一个收货校区，其余校区自动锁定；清空该格可重新选择";
+    sum.textContent = "整单送至：" + CAMPUSES[lockIdx] + " · " + t + " " + word + "（已写入总数量）";
+    note.textContent = trimmed
+      ? `已改为「不分校区」，仅保留「${CAMPUSES[lockIdx]}」的数量，其余已清空`
+      : `已指定送至「${CAMPUSES[lockIdx]}」`;
+  }else{
+    tip.textContent = "不分校区 —— 如需直接送到某一个校区，可在下方填数量（只能填 1 个，填完其余自动锁定）；全留空则统一送至华新服务中心";
+    sum.textContent = "未指定校区 —— 默认统一送至华新服务中心";
+    note.textContent = "如无需分校区，默认统一送至华新服务中心";
+  }
+
+  /* 总数量：分校区、或已指定单一校区时，由校区明细带出 */
+  const qty = $("#b_qty");
+  if(on || lockIdx >= 0){
+    qty.readOnly = true;
+    qty.value = t > 0 ? t : "";
+  }else{
+    qty.readOnly = false;
+  }
+  updateQtyNote(); applyGoodsPrice();
+}
+function afterQtyChange(){
+  updateQtyNote();
+  if(itemMode() === "goods") applyGoodsPrice();
+}
+
+/* ---------- 期望到达时间 ---------- */
+function checkArrive(){
+  const el = $("#b_arrive_note");
+  const a = $("#b_arrive").value, d = $("#b_date").value;
+  if(!a || !d){ el.textContent = ""; return; }
+  const days = Math.round((new Date(a) - new Date(d)) / 86400000);
+  const sup = $("#b_supplier").value;
+  const lead = sup === "广东印刷厂" ? 5 : 3;
+  if(days < 0){ el.textContent = "⚠ 到达时间早于送印日期，请检查"; el.style.color = "#C0392B"; }
+  else if(days < lead){ el.textContent = `⚠ 仅 ${days} 天，${sup}约需 ${lead} 天以上，可能来不及`; el.style.color = "#C0392B"; }
+  else { el.textContent = `送印后约 ${days} 天到达，时效可满足`; el.style.color = "#375623"; }
+}
+
+/* ---------- 印刷要求自动带出 ---------- */
+function autoReq(){
+  if(!isBook()){
+    const parts = [itemType(), $("#b_supplier").value];
+    if(itemMode() === "goods"){ const r = currentGoodsRow(); if(r) parts.push(r.paper); }
+    if(itemMode() === "exam") parts.push($("#b_size").value || "A4");
+    $("#b_req").value = parts.join("，");
+    return;
+  }
+  const cov = $("#b_cover").value || "", inner = $("#b_inner").value || "";
+  const innerTxt = inner.indexOf("彩色")>=0 ? "彩色" : (inner.indexOf("黑白")>=0 ? "黑白" : "");
+  const bind = /骑马钉/.test(cov) ? "骑马钉" : (/胶装/.test(cov) ? "胶装" : "");
+  const parts = ["封面彩色"];
+  if(innerTxt) parts.push("内页"+innerTxt);
+  parts.push($("#b_size").value || "A4","双面");
+  if(bind) parts.push(bind);
+  $("#b_req").value = parts.join("，");
+}
+
+/* ===================== 表单收集 / 计算 ===================== */
+function collectRow(){
+  const split = splitOn();
+  const campus = campusValues();          // 不分校区时最多只有 1 个校区
+  const qty = (split || campusTotal() > 0) ? campusTotal() : parseInt($("#b_qty").value,10);
+  const it = itemType(), mode = itemMode(), book = mode === "book";
+  const version = $("#b_version").value.trim();
+  const booktype = $("#b_booktype").value;
+  const o = {
+    sender: $("#b_sender").value.trim(), subject: $("#b_subject").value,
+    booktype: booktype, grade: $("#b_grade").value, version: version,
+    book: version || booktype || "未命名资料",
+    date: $("#b_date").value, arrive: $("#b_arrive").value,
+    print_req: $("#b_req").value.trim(), itemtype: it,
+    supplier: $("#b_supplier").value,
+    cover: book ? $("#b_cover").value : "",
+    inner_type: book ? $("#b_inner").value : "",
+    paper: (!book && mode === "goods" && currentGoodsRow()) ? currentGoodsRow().paper : "",
+    size: (book || mode === "exam") ? ($("#b_size").value || "A4") : "A4",
+    pages: (book || mode === "exam") ? parseInt($("#b_pages").value,10) : null,
+    qty: qty, split_campus: split ? "是" : "否",
+    extras: book ? extras() : [], campus: campus
+  };
+  if(!book){
+    const unit = parseFloat($("#b_unitprice").value);
+    if(!(unit > 0)) throw new Error("请填写单价");
+    let perBook, tierDesc, formula;
+    if(mode === "exam"){
+      if(!(o.pages > 0)) throw new Error("试卷请填写面数（面/份）");
+      const bd = pick(o.supplier,"试卷","钉装费");
+      const bind = bd && bd.a!=null ? bd.a : 0.4;
+      const a3 = o.size === "A3";
+      const printUnit = unit * (a3 ? 2 : 1);
+      perBook = Math.round((printUnit + bind) * o.pages * 10000) / 10000;
+      tierDesc = `试卷：面数×（印刷 ${printUnit}${a3 ? "（A3×2）" : ""} + 钉装 ${bind}）`;
+      formula = `算式：(${printUnit} 元/面${a3 ? "（A3×2）" : ""} + 钉装 ${bind} 元) × ${o.pages} 面 = <b>${fmt(perBook,4)} 元/份</b> × ${qty} 份 = <b>${fmt(perBook*qty,2)} 元</b>`;
+    }else{
+      const row = currentGoodsRow();
+      const word = row ? unitWord(row) : "件";
+      const moq = row ? (row.moq || 1) : 1;
+      if(qty < moq){
+        throw new Error(`${o.supplier} · ${it} 起订量 ${moq} ${word}，当前 ${qty} ${word}，低于起订量无法下单`);
+      }
+      const hit = row ? tierOf(row, qty) : null;
+      perBook = unit;
+      tierDesc = row ? `${row.paper} · ${hit ? "≥"+hit[0]+" "+word+" 档" : "手填单价"}` : "手填单价";
+      formula = `算式：${unit} 元/${word} × ${qty} ${word} = <b>${fmt(perBook*qty,2)} 元</b>`;
+    }
+    o._calc = {unit_inner:null, unit_cover:null, unit_price: perBook,
+      total: Math.round(perBook * qty * 100) / 100, tier_desc: tierDesc,
+      extra_per_book: 0, notes: [], formula: formula,
+      lead_time: o.supplier === "广东印刷厂" ? "淡季2-3天 / 旺季3-6天" : "约1-3天送达"};
+  }
+  return o;
+}
+function computeNow(){
+  if(splitOn() && campusTotal() <= 0) throw new Error("已选「需要分校区」，请先填写至少一个校区的数量");
+  const o = collectRow();
+  if(isBook() && !(o.pages > 0)) throw new Error("内页面数必须为大于0的整数");
+  if(!(o.qty > 0)) throw new Error("送印总数量必须为大于0的整数");
+  const r = isBook() ? calcOne(o) : o._calc;
+  return {o, r};
+}
+function showResult(o, r){
+  $("#resBox").classList.remove("hidden");
+  const w = isBook() ? "本" : (itemMode()==="exam" ? "份" : (()=>{ const r=currentGoodsRow(); return r?unitWord(r):"件"; })());
+  $("#r_unit_label").textContent = isBook() ? "单本价格（元）" : `单价（元/${w}）`;
+  $("#r_unit").textContent = fmtUnit(r.unit_price);
+  $("#r_total").textContent = Number(r.total).toLocaleString("zh-CN",{minimumFractionDigits:2});
+  document.querySelectorAll(".result .book-only-metric").forEach(el=>el.classList.toggle("hidden", !isBook()));
+  $("#r_ui").textContent = isBook() ? fmt(r.unit_inner,3) : "-";
+  $("#r_uc").textContent = isBook() ? fmt(r.unit_cover,2) : "-";
+  let html = `取价档位：<b>${r.tier_desc}</b>`;
+  if(isBook()) html += `；附加项单本 ${fmt(r.extra_per_book,3)} 元`;
+  html += `；预计时效：${r.lead_time}`;
+  if(r.notes && r.notes.length) html += `<br>提示：${r.notes.join("；")}`;
+  html += `<br>` + (r.formula || `算式：(${fmt(r.unit_inner,3)} 元/面 × ${o.pages} 面) + 封面 ${fmt(r.unit_cover,2)} 元 + 附加 ${fmt(r.extra_per_book,3)} 元 = <b>${fmt(r.unit_price,4)} 元/本</b> × ${o.qty} 本 = <b>${fmt(r.total,2)} 元</b>`);
+  $("#r_detail").innerHTML = html;
+}
+
+$("#btnCalc").addEventListener("click",()=>{
+  try{
+    const {o, r} = computeNow();
+    showResult(o, r);
+    setMsg("#calcMsg", "");
+  }catch(e){
+    $("#resBox").classList.add("hidden");
+    setMsg("#calcMsg", e.message, "err");
+  }
+});
+
+$("#btnAddBatch").addEventListener("click",()=>{
+  try{
+    const {o, r} = computeNow();
+    showResult(o, r);
+    BATCH.push({o, r}); renderBatch();
+    let warn = "";
+    const a = o.arrive;
+    if(a && o.date){
+      const days = Math.round((new Date(a) - new Date(o.date)) / 86400000);
+      const lead = o.supplier === "广东印刷厂" ? 5 : 3;
+      if(days < lead) warn = "；注意：期望到达时间可能来不及";
+    }
+    setMsg("#batchMsg", "已加入第 " + BATCH.length + " 项（小计 ¥" + fmt(r.total,2) + "）"
+      + (o.sender ? "" : "（送印人未填）") + warn, warn ? "err" : (o.sender ? "ok" : "warn"));
+    /* 导入队列：加入一条后自动载入下一个文件；已是最后一个则结束队列 */
+    if(flowActive()){
+      if(FLOW.idx < FLOW.rows.length - 1){
+        const next = FLOW.idx + 1;
+        CAMPUSES.forEach((c,i)=>{ $("#bc_"+i).value=""; });
+        flowLoad(next);
+        setMsg("#batchMsg", "已加入《" + (o.version||"本条") + "》，已自动填入第 " + (next+1) + " / " + FLOW.rows.length + " 个文件，请核对后继续", "ok");
+      }else{
+        flowClear();
+        setMsg("#batchMsg", "已加入《" + (o.version||"本条") + "》，本批 " + FLOW.rows.length + " 个文件已全部处理完", "ok");
+      }
+      return;
+    }
+    // 非导入场景：清掉易混淆的字段，保留同类信息便于连续录入
+    CAMPUSES.forEach((c,i)=>{ $("#bc_"+i).value=""; });
+    $("#b_version").value="";
+    $("#b_split").value="否"; $("#b_split").dispatchEvent(new Event("change"));
+  }catch(e){ setMsg("#calcMsg", e.message, "err"); }
+});
+
+/* ===================== 清单表格 ===================== */
+function campusShort(o){
+  const cv = o.campus || {}, names = Object.keys(cv);
+  if(names.length === 1) return names[0];
+  if(names.length) return names.length + " 个校区";
+  return o.split_campus === "是" ? "（未填）" : "不分校区";
+}
+function campusFull(o){
+  const cv = o.campus || {}, names = Object.keys(cv);
+  return names.length ? names.map(n=>`${n}:${cv[n]}`).join("；") : "不分校区";
+}
+function itemShort(o){
+  const it = o.itemtype || "书本（教材/练习册/汇编）";
+  return it.indexOf("书本") === 0 ? "书本" : it;
+}
+function renderBatch(){
+  const tb = $("#batchTable").querySelector("tbody");
+  const qtySum = BATCH.reduce((s,b)=>s+Number(b.o.qty||0),0);
+  const amtSum = BATCH.reduce((s,b)=>s+Number(b.r.total||0),0);
+  $("#batchSum").innerHTML = BATCH.length
+    ? `<span>共 <b>${BATCH.length}</b> 项</span><span>合计 <b>${qtySum.toLocaleString("zh-CN")}</b> 本</span>
+       <span>金额 <b>¥${amtSum.toLocaleString("zh-CN",{minimumFractionDigits:2})}</b></span>`
+    : `<span>暂无条目</span>`;
+  tb.innerHTML = BATCH.length ? BATCH.map((b,i)=>{
+    const o = b.o;
+    return `<tr>
+      <td>${i+1}</td><td>${o.sender||"—"}</td><td>${o.subject||"—"}</td>
+      <td>${o.grade||"—"}</td><td>${o.version||o.booktype||"—"}</td><td>${itemShort(o)}</td>
+      <td>${o.pages||"—"}</td><td>${o.qty}</td>
+      <td class="campuscell" title="${campusFull(o)}">${campusShort(o)}</td>
+      <td>${o.supplier.replace("印刷厂","")}</td><td class="num">${fmtUnit(b.r.unit_price)}</td>
+      <td class="num"><b>${fmt(b.r.total,2)}</b></td>
+      <td><button class="danger sm" data-i="${i}">移除</button></td></tr>`;
+  }).join("")
+  + `<tr class="sumrow"><td colspan="7">合计</td><td>${qtySum}</td><td colspan="3"></td>
+      <td class="num">${amtSum.toLocaleString("zh-CN",{minimumFractionDigits:2})}</td><td></td></tr>`
+  : `<tr><td colspan="13" class="empty">还没有加入任何送印项 —— 在上方「手动填写送印单」逐条填写后点「加入清单」，或用下方「导入送印项」选文件夹一次读入多个文件</td></tr>`;
+  tb.querySelectorAll("[data-i]").forEach(x=>x.addEventListener("click",()=>{BATCH.splice(+x.dataset.i,1);renderBatch();}));
+}
+$("#btnClearBatch").addEventListener("click",()=>{
+  if(BATCH.length && !confirm("确定清空当前清单？")) return;
+  BATCH=[]; renderBatch();
+  CAMPUSES.forEach((c,i)=>{ $("#bc_"+i).value=""; });
+  $("#b_split").value="否"; $("#b_split").dispatchEvent(new Event("change")); setMsg("#batchMsg","");
+});
+$("#btnSaveBatch").addEventListener("click",()=>{
+  if(!BATCH.length){ setMsg("#batchMsg","清单为空","err"); return; }
+  BATCH.forEach(b=>RECORDS.push(Object.assign({},b.o,{unit_inner:b.r.unit_inner,unit_cover:b.r.unit_cover,
+    unit_price:b.r.unit_price,total:b.r.total,tier:b.r.tier_desc})));
+  lsSet(LS_REC,RECORDS); renderRecords();
+  setMsg("#batchMsg","已保存 "+BATCH.length+" 条到本机记录","ok"); BATCH=[]; renderBatch();
+});
+
+/* ===================== 价格参数表 ===================== */
+function renderPrices(){
+  const tb=$("#priceTable").querySelector("tbody");
+  const dis = ADMIN ? "" : "disabled";
+  tb.innerHTML = PRICES.map(p=>`<tr>
+    <td>${p.id}</td><td>${p.supplier}</td><td>${p.kind}</td><td>${p.name}</td><td>${p.unit}</td>
+    <td><input class="price" data-id="${p.id}" data-f="a" value="${p.a==null?"":p.a}" ${dis}></td>
+    <td><input class="price" data-id="${p.id}" data-f="b" value="${p.b==null?"":p.b}" ${dis}></td>
+    <td><input class="price" data-id="${p.id}" data-f="c" value="${p.c==null?"":p.c}" ${dis}></td>
+    <td style="font-size:12px;color:#6B7280">${p.note||""}</td></tr>`).join("");
+}
+function renderGoods(){
+  const tb=$("#goodsTable").querySelector("tbody");
+  const dis = ADMIN ? "" : "disabled";
+  tb.innerHTML = GOODS.map(g=>{
+    const ts = (g.tiers||[]).slice().sort((a,b)=>a[0]-b[0]);
+    const cells = [0,1,2,3].map(i=>{
+      const t = ts[i];
+      return `<td class="tier"><input class="tq" type="number" min="0" step="1" value="${t?t[0]:""}" ${dis}>` +
+             `<span class="tsep">/</span><input class="tp" type="number" min="0" step="0.0001" value="${t?t[1]:""}" ${dis}></td>`;
+    }).join("");
+    return `<tr data-id="${g.id}">
+      <td>${g.item}</td><td>${g.supplier}</td>
+      <td><input class="gspec" value="${g.paper}" ${dis}></td>
+      <td>${g.unit}</td>
+      <td><input class="moq" type="number" min="1" step="1" value="${g.moq}" ${dis}></td>
+      ${cells}<td class="note">${g.note||""}</td></tr>`;
+  }).join("");
+}
+$("#btnSavePrices").addEventListener("click",()=>{
+  if(!ADMIN){ setMsg("#priceMsg","请先登录","err"); return; }
+  document.querySelectorAll("#priceTable input.price").forEach(inp=>{
+    const p = PRICES.find(x=>x.id==inp.dataset.id);
+    const v = inp.value.trim();
+    p[inp.dataset.f] = (v==="" ? null : parseFloat(v));
+  });
+  document.querySelectorAll("#goodsTable tbody tr").forEach(tr=>{
+    const g = GOODS.find(x=>x.id==tr.dataset.id);
+    if(!g) return;
+    const spec = tr.querySelector(".gspec");
+    if(spec && spec.value.trim()) g.paper = spec.value.trim();
+    const moq = parseInt(tr.querySelector(".moq").value,10);
+    g.moq = moq > 0 ? moq : 1;
+    const tiers = [];
+    tr.querySelectorAll("td.tier").forEach(td=>{
+      const m = parseFloat(td.querySelector(".tq").value);
+      const p = parseFloat(td.querySelector(".tp").value);
+      if(m > 0 && !isNaN(p)) tiers.push([m, p]);
+    });
+    g.tiers = tiers.sort((a,b)=>a[0]-b[0]);
+  });
+  lsSet(LS_PRICES, {p:PRICES, g:GOODS});
+  lsSet("sy_psig_v2", signPrices(PRICES, GOODS));
+  refreshItemUI();
+  setMsg("#priceMsg","已保存到本机，并已刷新算价；要让同事同步请点「生成新版文件」","ok");
+});
+$("#btnResetPrices").addEventListener("click",()=>{
+  if(!ADMIN||!confirm("恢复为出厂价格？本机改过的价格会丢失。")) return;
+  PRICES = JSON.parse(JSON.stringify(PRICE_DATA));
+  GOODS  = JSON.parse(JSON.stringify(GOODS_DATA));
+  localStorage.removeItem(LS_PRICES); localStorage.removeItem("sy_psig_v2");
+  renderPrices(); renderGoods(); refreshItemUI();
+  setMsg("#priceMsg","已恢复出厂价格","ok");
+});
+$("#btnGenFile").addEventListener("click",()=>{
+  if(!ADMIN){ setMsg("#priceMsg","请先登录","err"); return; }
+  try{
+    let src = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
+    const newSig = signPrices(PRICES, GOODS);
+    const newHash = lsGet(LS_PWD, ADMIN_HASH);
+    src = src.replace(/const PRICE_DATA = \[[\s\S]*?\];/, "const PRICE_DATA = " + JSON.stringify(PRICES) + ";");
+    src = src.replace(/const GOODS_DATA = \[[\s\S]*?\];/, "const GOODS_DATA = " + JSON.stringify(GOODS) + ";");
+    src = src.replace(/const PRICE_SIG = "[^"]*";/, 'const PRICE_SIG = "' + newSig + '";');
+    src = src.replace(/const ADMIN_HASH = "[^"]*";/, 'const ADMIN_HASH = "' + newHash + '";');
+    if(src.indexOf("const PRICE_DATA")<0 || src.indexOf("const GOODS_DATA")<0 || src.indexOf(newSig)<0) throw new Error("文件模板替换失败");
+    const d=new Date(); const stamp=`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getDate()).padStart(2,"0")}`;
+    const blob = new Blob([src],{type:"text/html;charset=utf-8"});
+    const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
+    a.download=`送印价格计算_${stamp}.html`; a.click(); URL.revokeObjectURL(a.href);
+    setMsg("#priceMsg","新文件已生成（下载目录），把它发给同事即可同步新价格","ok");
+  }catch(e){ setMsg("#priceMsg","生成失败："+e.message,"err"); }
+});
+
+/* ===================== 记录 ===================== */
+function renderRecords(){
+  const tb=$("#recTable").querySelector("tbody");
+  tb.innerHTML = RECORDS.length ? RECORDS.map((r,i)=>`<tr>
+    <td>${i+1}</td><td>${r.date}</td><td>${r.book||""}</td><td>${r.supplier}</td><td>${r.inner_type||""}</td>
+    <td>${r.pages}</td><td>${r.qty}</td><td class="num">${fmtUnit(r.unit_price)}</td>
+    <td class="num"><b>${Number(r.total).toLocaleString("zh-CN",{minimumFractionDigits:2})}</b></td>
+    <td><button class="danger sm" data-r="${i}">删除</button></td></tr>`).join("")
+    : '<tr><td colspan="10" class="empty">暂无记录</td></tr>';
+  tb.querySelectorAll("[data-r]").forEach(b=>b.addEventListener("click",()=>{
+    RECORDS.splice(+b.dataset.r,1); lsSet(LS_REC,RECORDS); renderRecords(); }));
+}
+$("#btnRefreshRec").addEventListener("click",()=>{ RECORDS=lsGet(LS_REC,[]); renderRecords(); });
+$("#btnClearRec").addEventListener("click",()=>{
+  if(!confirm("确定清空本机保存的记录？")) return;
+  RECORDS=[]; lsSet(LS_REC,RECORDS); renderRecords(); });
+
+/* ===================== 复制 / 导出 ===================== */
+const PRICE_HEADERS = ["送印日期","印刷项目","供应商","封面工艺","内页类型","内页面数","单本价","取价档位"];
+const NOTE_HEADERS = ["送货备注","物流备注","是否异常（有问题备注）","期望到达时间"];
+const SHEET_HEADERS = ["送印人","科目","教研资料","年级","版本","送印总数量","印刷要求"]
+  .concat(CAMPUSES).concat(NOTE_HEADERS).concat(PRICE_HEADERS);
+const HEADERS = ["序号","送印日期","送印人","科目","教研资料","年级","版本","印刷项目","供应商","封面工艺","内页类型","面数","数量","单本价","总价","取价档位"];
+
+function sheetRow(o){
+  const arrive = $("#b_arrive") ? $("#b_arrive").value : "";
+  return [o.sender||"", o.subject||"", o.booktype||"", o.grade||"", o.version||"", o.qty||"", o.print_req||""]
+    .concat(CAMPUSES.map(c=>{ const v=(o.campus||{})[c]; return (v==null||v==="")?"":v; }))
+    .concat(["", "", "", arrive || ""])
+    .concat([o.date||"", o.itemtype||"书本（教材/练习册/汇编）", o.supplier||"", o.cover||"",
+             o.inner_type||"", (o.pages==null?"":o.pages), (o.unit_price==null?"":o.unit_price), o.tier||""]);
+}
+function sheetMatrix(list){
+  return [SHEET_HEADERS].concat(list.map(sheetRow));
+}
+function batchFlat(){
+  return BATCH.map(b=>Object.assign({}, b.o, {unit_inner:b.r.unit_inner, unit_cover:b.r.unit_cover,
+    unit_price:b.r.unit_price, total:b.r.total, tier:b.r.tier_desc}));
+}
+function copyMatrix(m){
+  const tsv = m.map(r=>r.join("\t")).join("\n");
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(tsv).catch(()=>fallbackCopy(tsv));
+  }else fallbackCopy(tsv);
+}
+function fallbackCopy(tsv){
+  const ta=document.createElement("textarea"); ta.value=tsv; document.body.appendChild(ta);
+  ta.select(); document.execCommand("copy"); ta.remove();
+}
+function batchMeta(){
+  const d = $("#b_date") && $("#b_date").value ? $("#b_date").value : new Date().toISOString().slice(0,10);
+  const n = $("#b_note") ? $("#b_note").value.trim() : "";
+  return {d,n};
+}
+function batchFileName(ext){
+  const m = batchMeta();
+  const safe = m.n.replace(/[\\/:*?"<>|\s]+/g,"");
+  return "送印单_" + m.d + (safe ? "_" + safe : "") + "." + ext;
+}
+$("#btnCopy").addEventListener("click",()=>{
+  if(!BATCH.length){ setMsg("#batchMsg","清单为空","err"); return; }
+  copyMatrix(sheetMatrix(batchFlat()));
+  setMsg("#batchMsg","已复制 "+BATCH.length+" 行（31 列，含备注与算价字段），到在线表格选中 A1 后 Ctrl+V","ok");
+});
+$("#btnCopyRec").addEventListener("click",()=>{
+  if(!RECORDS.length){ setMsg("#recMsg","暂无记录","err"); return; }
+  copyMatrix(sheetMatrix(RECORDS));
+  setMsg("#recMsg","已复制 "+RECORDS.length+" 行（送印单格式），到在线表格 Ctrl+V","ok");
+});
+function loadScript(u){ return new Promise((res,rej)=>{const s=document.createElement("script");s.src=u;s.onload=res;s.onerror=()=>rej(new Error(u));document.head.appendChild(s);}); }
+
+/* ===================== 带样式的 Excel 导出 ===================== */
+const XL_C = { brand:"1F4E79", header:"2E75B6", zebra:"F3F7FB", total:"FFF2CC",
+               border:"C9D5E3", label:"E8EEF7", text:"1F2937", note:"FFF7E6" };
+const XL_FONT = "微软雅黑";
+let _xlReady = null;
+function ensureExcelJS(){
+  if(typeof ExcelJS !== "undefined") return Promise.resolve();
+  if(_xlReady) return _xlReady;
+  _xlReady = loadScript("https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js")
+    .catch(()=>loadScript("https://unpkg.com/exceljs@4.4.0/dist/exceljs.min.js"))
+    .catch(()=>{ _xlReady = null; throw new Error("ExcelJS 加载失败"); });
+  return _xlReady;
+}
+function xlStyle(cell, o){
+  o = o || {};
+  if(o.fill) cell.fill = { type:"pattern", pattern:"solid", fgColor:{ argb:"FF"+o.fill } };
+  const font = { name:XL_FONT, size:o.size||11, color:{ argb:"FF"+(o.color||XL_C.text) } };
+  if(o.bold) font.bold = true;
+  cell.font = font;
+  cell.alignment = Object.assign({ vertical:"middle" }, o.align || {});
+  if(o.border){
+    const b = { style:o.border, color:{ argb:"FF"+(o.borderColor||XL_C.border) } };
+    cell.border = { top:b, left:b, bottom:b, right:b };
+  }
+  if(o.numFmt) cell.numFmt = o.numFmt;
+}
+function xlWriteSheet(wb, spec){
+  const nCol = spec.widths.length;
+  const ws = wb.addWorksheet(spec.name, {
+    views:[{ state:"frozen", xSplit:spec.freezeCols||0, ySplit:spec.headerRow }],
+    pageSetup:{ orientation:"landscape", fitToPage:true, fitToWidth:1, fitToHeight:0,
+      margins:{ left:0.35, right:0.35, top:0.5, bottom:0.5, header:0.25, footer:0.25 } }
+  });
+  spec.widths.forEach((w,i)=>{ ws.getColumn(i+1).width = w; });
+  let r = 1;
+  if(spec.title){
+    const row = ws.getRow(r); row.height = 36;
+    for(let i=1;i<=nCol;i++) xlStyle(row.getCell(i), { fill:XL_C.brand });
+    const c = row.getCell(1);
+    c.value = spec.title;
+    xlStyle(c, { fill:XL_C.brand, color:"FFFFFF", bold:true, size:16, align:{ horizontal:"center" } });
+    ws.mergeCells(r, 1, r, nCol);
+    r++;
+  }
+  (spec.meta||[]).forEach(line=>{
+    const row = ws.getRow(r); row.height = 24;
+    for(let i=1;i<=nCol;i++){
+      const c0 = row.getCell(i);
+      xlStyle(c0, { fill:"FFFFFF" });
+      c0.border = { bottom:{ style:"thin", color:{ argb:"FF"+XL_C.border } } };
+    }
+    line.forEach(item=>{
+      const c = row.getCell(item.col); c.value = item.v;
+      xlStyle(c, item.label ? { fill:XL_C.label, bold:true, align:{horizontal:"center"} }
+                            : { fill:"FFFFFF", align:{horizontal:"left"} });
+      c.border = { bottom:{ style:"thin", color:{ argb:"FF"+XL_C.border } } };
+    });
+    r++;
+  });
+  const hr = ws.getRow(r); hr.height = 32;
+  spec.headers.forEach((h,i)=>{
+    const c = hr.getCell(i+1); c.value = h;
+    xlStyle(c, { fill:XL_C.header, color:"FFFFFF", bold:true,
+      align:{ horizontal:"center", vertical:"middle", wrapText:true },
+      border:"thin", borderColor:"FFFFFF" });
+  });
+  r++;
+  spec.rows.forEach((row, ri)=>{
+    const tr = ws.getRow(r); tr.height = 24;
+    const isNote = (spec.noteRows||[]).indexOf(ri) >= 0;
+    for(let i=0;i<nCol;i++){
+      const c = tr.getCell(i+1);
+      const v = row[i];
+      c.value = (v===""||v===null||v===undefined) ? null : v;
+      const money = (spec.moneyCols||[]).indexOf(i)>=0;
+      const num   = (spec.numCols||[]).indexOf(i)>=0;
+      const mid   = (spec.centerCols||[]).indexOf(i)>=0;
+      xlStyle(c, {
+        fill: isNote ? XL_C.note : (ri%2 ? XL_C.zebra : "FFFFFF"),
+        bold: isNote || money, border:"thin",
+        align:{ horizontal: money||num ? "right" : (mid ? "center" : "left"),
+                wrapText: (spec.wrapCols||[]).indexOf(i)>=0 },
+        numFmt: money ? "¥#,##0.00" : (num ? "#,##0" : undefined)
+      });
+    }
+    r++;
+  });
+  if(spec.total){
+    const tr = ws.getRow(r); tr.height = 28;
+    for(let i=0;i<nCol;i++){
+      const c = tr.getCell(i+1);
+      const v = spec.total[i];
+      c.value = (v===""||v===null||v===undefined) ? null : v;
+      const money = (spec.moneyCols||[]).indexOf(i)>=0;
+      const num   = (spec.numCols||[]).indexOf(i)>=0;
+      xlStyle(c, { fill:XL_C.total, bold:true, border:"thin",
+        align:{ horizontal: money||num ? "right" : "center" },
+        numFmt: money ? "¥#,##0.00" : (num ? "#,##0" : undefined) });
+      c.border = Object.assign({}, c.border, { top:{ style:"medium", color:{ argb:"FF"+XL_C.brand } } });
+    }
+  }
+  const lastData = spec.headerRow + spec.rows.length;
+  try{ ws.autoFilter = { from:{ row:spec.headerRow, column:1 }, to:{ row:lastData, column:nCol } }; }catch(e){}
+  try{ ws.pageSetup.printTitlesRow = spec.headerRow + ":" + spec.headerRow; }catch(e){}
+  return ws;
+}
+function buildStyledWorkbook(specs){
+  const wb = new ExcelJS.Workbook();
+  wb.creator = "未来教育 · 送印价格计算";
+  wb.created = wb.modified = new Date();
+  specs.forEach(sp=>xlWriteSheet(wb, sp));
+  return wb;
+}
+function downloadBlob(blob, fn){
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = fn;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 5000);
+}
+async function exportStyledXlsx(specs, fn){
+  await ensureExcelJS();
+  const wb = buildStyledWorkbook(specs);
+  const buf = await wb.xlsx.writeBuffer();
+  downloadBlob(new Blob([buf], { type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), fn);
+}
+function exportXlsStyled(specs, fn){
+  const esc = s=>String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  const parts = specs.map(sp=>{
+    const nCol = sp.widths.length;
+    const colgroup = "<colgroup>"+sp.widths.map(w=>'<col style="width:'+Math.round(w*7.5)+'px">').join("")+"</colgroup>";
+    let h = '<table border="0" cellspacing="0" cellpadding="0" style="border-collapse:collapse;font-family:Microsoft YaHei,微软雅黑,sans-serif;font-size:11pt">'+colgroup;
+    if(sp.title){
+      h += '<tr><td colspan="'+nCol+'" style="background:#1F4E79;color:#FFFFFF;font-size:16pt;font-weight:bold;text-align:center;padding:10px">'+esc(sp.title)+'</td></tr>';
+    }
+    (sp.meta||[]).forEach(line=>{
+      h += "<tr>";
+      let cursor = 1;
+      line.forEach(item=>{
+        while(cursor < item.col){ h += '<td style="border-bottom:1px solid #C9D5E3"></td>'; cursor++; }
+        const st = item.label ? "background:#E8EEF7;font-weight:bold;text-align:center;border-bottom:1px solid #C9D5E3;padding:5px 8px"
+                              : "background:#FFFFFF;text-align:left;border-bottom:1px solid #C9D5E3;padding:5px 8px";
+        h += '<td style="'+st+'">'+esc(item.v)+'</td>';
+        cursor = item.col + 1;
+      });
+      while(cursor <= nCol){ h += '<td style="border-bottom:1px solid #C9D5E3"></td>'; cursor++; }
+      h += "</tr>";
+    });
+    h += "<tr>"+sp.headers.map(x=>'<th style="background:#2E75B6;color:#FFFFFF;border:1px solid #FFFFFF;padding:6px 8px;font-weight:bold;text-align:center">'+esc(x)+"</th>").join("")+"</tr>";
+    sp.rows.forEach((row,ri)=>{
+      const note = (sp.noteRows||[]).indexOf(ri)>=0;
+      const bg = note ? "#FFF7E6" : (ri%2 ? "#F3F7FB" : "#FFFFFF");
+      h += "<tr>"+Array.from({length:nCol},(_,i)=>{
+        const v = row[i];
+        const money = (sp.moneyCols||[]).indexOf(i)>=0;
+        const num   = (sp.numCols||[]).indexOf(i)>=0;
+        const mid   = (sp.centerCols||[]).indexOf(i)>=0;
+        let st = "background:"+bg+";border:1px solid #C9D5E3;padding:5px 8px;";
+        if(money) st += "mso-number-format:'#,##0.00';text-align:right;font-weight:bold";
+        else if(num) st += "mso-number-format:'#,##0';text-align:right";
+        else if(mid) st += "text-align:center";
+        else st += "text-align:left";
+        return '<td style="'+st+'">'+esc(v)+"</td>";
+      }).join("")+"</tr>";
+    });
+    if(sp.total){
+      h += "<tr>"+Array.from({length:nCol},(_,i)=>{
+        const money = (sp.moneyCols||[]).indexOf(i)>=0;
+        const num   = (sp.numCols||[]).indexOf(i)>=0;
+        const st = "background:#FFF2CC;font-weight:bold;border:1px solid #C9D5E3;border-top:2px solid #1F4E79;padding:6px 8px;text-align:"
+          + (money?"right;mso-number-format:'#,##0.00'":(num?"right;mso-number-format:'#,##0'":"center"));
+        return '<td style="'+st+'">'+esc(sp.total[i])+"</td>";
+      }).join("")+"</tr>";
+    }
+    return h+"</table>";
+  });
+  const html = "<html xmlns:x='urn:schemas-microsoft-com:office:excel'><head><meta charset='UTF-8'></head><body>"
+    + parts.join("<br><br>") + "</body></html>";
+  downloadBlob(new Blob(["\ufeff"+html], { type:"application/vnd.ms-excel;charset=utf-8" }), fn);
+}
+/* ---------- 工作表结构描述 ---------- */
+function bookSheetSpec(list, name){
+  const m = sheetMatrix(list);
+  const headers = m[0], rows = m.slice(1);
+  const noteRows = [];
+  rows.forEach((row,i)=>{ if(row[0]==="期望到达时间") noteRows.push(i); });
+  return {
+    name: name || "送印单",
+    title: null, meta: [],
+    headers: headers, rows: rows, total: null,
+    headerRow: 1,
+    widths: [11,8,14,8,26,13,36].concat(CAMPUSES.map(()=>11)).concat([22,22,16,12]).concat([11,22,12,26,12,9,10,22]),
+    freezeCols: 5,
+    numCols: [5,28,29],
+    centerCols: [3].concat(CAMPUSES.map((_,i)=>7+i)).concat([21,22,23,25,26,27,28,29,30]),
+    noteRows: noteRows
+  };
+}
+function detailSheetSpec(list, opts){
+  opts = opts || {};
+  const rows = list.map((r,i)=>[i+1, r.date||"", r.sender||"", r.subject||"", r.booktype||"", r.grade||"", r.version||"",
+    r.itemtype||"书本", r.supplier||"", r.cover||"", r.inner_type||"", r.pages||"", r.qty||"", r.unit_price, r.total, r.tier||""]);
+  const qtySum = list.reduce((s,x)=>s+Number(x.qty||0),0);
+  const moneySum = Number(list.reduce((s,x)=>s+Number(x.total||0),0).toFixed(2));
+  const total = new Array(HEADERS.length).fill("");
+  total[0] = "合计"; total[12] = qtySum; total[14] = moneySum;
+  const meta = [];
+  if(opts.withMeta !== false){
+    const bm = batchMeta();
+    const arrive = $("#b_arrive") ? $("#b_arrive").value : "";
+    meta.push([{col:5,v:"送印日期",label:1},{col:6,v:bm.d||"—"},
+               {col:8,v:"批次备注",label:1},{col:9,v:bm.n||"—"},
+               {col:11,v:"期望到达",label:1},{col:12,v:arrive||"—"}]);
+    meta.push([{col:5,v:"制表时间",label:1},{col:6,v:new Date().toLocaleString("zh-CN")}]);
+  }
+  const titleText = opts.title === null ? null : (opts.title || "未来教育 · 送印费用明细");
+  const headerRow = 1 + (titleText?1:0) + meta.length;
+  return {
+    name: opts.name || "费用明细",
+    title: titleText, meta: meta,
+    headers: HEADERS, rows: rows, total: total,
+    headerRow: headerRow,
+    widths: [6,12,10,8,14,8,24,14,13,24,10,8,9,10,13,22],
+    freezeCols: 3,
+    numCols: [11,12], moneyCols: [13,14],
+    centerCols: [0,3,5,11,12]
+  };
+}
+
+$("#btnExport").addEventListener("click",async()=>{
+  if(!BATCH.length){ setMsg("#batchMsg","清单为空","err"); return; }
+  const specs = [ bookSheetSpec(batchFlat()), detailSheetSpec(batchFlat(), {withMeta:true}) ];
+  const fn = batchFileName("xlsx");
+  setMsg("#batchMsg","正在生成带样式的 Excel"+(typeof ExcelJS==="undefined"?"（首次需联网加载组件，约 3-5 秒）":"")+"…","warn");
+  try{
+    await exportStyledXlsx(specs, fn);
+    setMsg("#batchMsg","已导出 "+fn+"（「送印单」31 列可直接粘贴到对接表，「费用明细」含标题与合计）","ok");
+  }catch(e){
+    exportXlsStyled(specs, batchFileName("xls"));
+    setMsg("#batchMsg","样式组件需联网加载，已改用 .xls 导出（美化版，Excel/WPS 可直接打开）","warn");
+  }
+});
+$("#btnExportXls").addEventListener("click",()=>{
+  if(!BATCH.length){ setMsg("#batchMsg","清单为空","err"); return; }
+  const specs = [ bookSheetSpec(batchFlat()), detailSheetSpec(batchFlat(), {withMeta:true}) ];
+  exportXlsStyled(specs, batchFileName("xls"));
+  setMsg("#batchMsg","已导出 .xls（美化版，Excel/WPS 可直接打开）","ok");
+});
+$("#btnExportRec").addEventListener("click",async()=>{
+  if(!RECORDS.length){ setMsg("#recMsg","暂无记录","err"); return; }
+  const specs = [ bookSheetSpec(RECORDS), detailSheetSpec(RECORDS, {withMeta:false}) ];
+  setMsg("#recMsg","正在生成带样式的 Excel"+(typeof ExcelJS==="undefined"?"（首次需联网加载组件）":"")+"…","warn");
+  try{
+    await exportStyledXlsx(specs, "送印记录.xlsx");
+    setMsg("#recMsg","已导出 送印记录.xlsx（送印单 + 费用明细）","ok");
+  }catch(e){
+    exportXlsStyled(specs, "送印记录.xls");
+    setMsg("#recMsg","样式组件需联网加载，已改用 .xls 台账导出","warn");
+  }
+});
+
+/* ===================== 管理员登录 ===================== */
+function openModal(){
+  $("#modal").classList.add("show");
+  $("#mTitle").textContent = ADMIN ? "管理员设置" : "管理员登录";
+  $("#mLogin").classList.toggle("hidden", ADMIN);
+  $("#mPwdBox").classList.toggle("hidden", !ADMIN);
+  $("#mMsg").textContent="";
+}
+function closeModal(){ $("#modal").classList.remove("show"); }
+function enterAdmin(){
+  ADMIN = true;
+  $("#statePill").textContent="管理员（可改价）"; $("#statePill").classList.remove("locked");
+  $("#adminBtns").style.display="flex";
+  $("#lockText").innerHTML="已登录：可直接改价格，并生成新版文件转发给同事。";
+  $("#btnLogin2").textContent="管理员设置";
+  document.querySelectorAll('.tab[data-t="prices"]').forEach(t=>t.classList.add("showtab"));
+  renderPrices(); renderGoods();
+}
+function exitAdmin(){
+  ADMIN=false;
+  $("#statePill").textContent="只读（价格已锁定）"; $("#statePill").classList.add("locked");
+  $("#adminBtns").style.display="none";
+  $("#lockText").innerHTML="当前为<b>只读模式</b>：价格已内置并签名锁定，改价需管理员密码。";
+  $("#btnLogin2").textContent="管理员登录后可修改";
+  document.querySelectorAll('.tab[data-t="prices"]').forEach(t=>t.classList.remove("showtab"));
+  const pt = document.querySelector('.tab[data-t="prices"]');
+  if(pt && pt.classList.contains("active")) switchTab("calc");
+  renderPrices(); renderGoods();
+}
+$("#btnLoginTop").addEventListener("click",openModal);
+$("#btnLogin2").addEventListener("click",openModal);
+$("#mCancel").addEventListener("click",closeModal);
+$("#mCancel2").addEventListener("click",closeModal);
+$("#mLoginBtn").addEventListener("click",()=>{
+  const h = lsGet(LS_PWD, ADMIN_HASH);
+  if(hashPwd($("#m_pwd").value) === h){ $("#m_pwd").value=""; enterAdmin(); closeModal(); }
+  else $("#mMsg").textContent="密码不正确";
+});
+$("#mPwdBtn").addEventListener("click",()=>{
+  const h = lsGet(LS_PWD, ADMIN_HASH);
+  if(hashPwd($("#m_old").value)!==h){ $("#mMsg").textContent="原密码不正确"; return; }
+  const np=$("#m_new").value;
+  if(!np||np.length<6){ $("#mMsg").textContent="新密码至少6位"; return; }
+  lsSet(LS_PWD, hashPwd(np));
+  $("#m_old").value=""; $("#m_new").value="";
+  $("#mMsg").textContent="";
+  alert("密码已更新。若要让新密码在新文件中生效，请到「价格参数」页点一次「生成新版文件」。");
+  closeModal();
+});
+$("#mLogout").addEventListener("click",()=>{ exitAdmin(); closeModal(); });
+
+/* ===================== Tab ===================== */
+function switchTab(name){
+  document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("active", x.dataset.t===name));
+  document.querySelector("main").classList.toggle("wide", name === "prices");
+  ["calc","prices","records"].forEach(k=>$("#t-"+k).classList.toggle("hidden",k!==name));
+}
+document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click",()=>switchTab(t.dataset.t)));
+
+/* ===================== 自定义下拉 ===================== */
+/* 原生 <select> 的弹出列表由浏览器绘制，下方空间不足时会自动翻到上方；
+   这里统一换成「按钮 + 绝对定位面板」，固定向下展开，选项多时面板内部滚动。
+   原生 select 仍留在 DOM 中（display:none）作为数据源，取值与 change 事件逻辑不变。 */
+function initDropdown(sel){
+  if(!sel || sel.dataset.ddInit === "1") return;
+  sel.dataset.ddInit = "1";
+
+  let dd = sel.closest(".dd");
+  if(!dd){
+    dd = document.createElement("div");
+    dd.className = "dd";
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "dd-btn";
+    b.setAttribute("aria-haspopup","listbox");
+    b.innerHTML = '<span class="dd-txt"></span><span class="dd-caret"></span>';
+    const p = document.createElement("div");
+    p.className = "dd-panel";
+    p.setAttribute("role","listbox");
+    sel.parentNode.insertBefore(dd, sel);
+    dd.appendChild(b); dd.appendChild(p); dd.appendChild(sel);
+  }
+  sel.classList.add("dd-native");
+  sel.setAttribute("tabindex","-1");
+
+  const btn = dd.querySelector(".dd-btn");
+  const txt = dd.querySelector(".dd-txt");
+  const panel = dd.querySelector(".dd-panel");
+
+  const build = ()=>{
+    panel.innerHTML = Array.from(sel.options).map((o,i)=>{
+      const grp = (o.parentNode.tagName === "OPTGROUP") ? o.parentNode.label : null;
+      const prev = i > 0 ? sel.options[i-1] : null;
+      const prevGrp = prev && prev.parentNode.tagName === "OPTGROUP" ? prev.parentNode.label : null;
+      const head = (grp && grp !== prevGrp) ? `<div class="dd-group">${grp}</div>` : "";
+      return head + `<div class="dd-opt" data-i="${i}" title="${o.text}">${o.text}</div>`;
+    }).join("");
+  };
+  const sync = ()=>{
+    const cur = sel.options[sel.selectedIndex];
+    txt.textContent = cur ? cur.textContent : "";
+    txt.title = cur ? cur.textContent : "";
+    dd.classList.toggle("ph", !sel.value);
+    panel.querySelectorAll(".dd-opt").forEach(x=>x.classList.toggle("sel", +x.dataset.i === sel.selectedIndex));
+  };
+  const close = ()=>dd.classList.remove("open");
+
+  btn.addEventListener("click", e=>{
+    e.stopPropagation();
+    const open = !dd.classList.contains("open");
+    document.querySelectorAll(".dd.open").forEach(x=>x.classList.remove("open"));
+    dd.classList.toggle("open", open);
+    if(open){
+      sync();
+      panel.style.left = "0"; panel.style.right = "auto";
+      const pr = panel.getBoundingClientRect();
+      if(pr.right > window.innerWidth - 10){ panel.style.left = "auto"; panel.style.right = "0"; }
+      const cur = panel.querySelector(".dd-opt.sel");
+      if(cur && typeof cur.scrollIntoView === "function") cur.scrollIntoView({ block:"nearest" });
+    }
+  });
+  panel.addEventListener("click", e=>{
+    const o = e.target.closest(".dd-opt");
+    if(!o) return;
+    if(sel.selectedIndex !== +o.dataset.i){
+      sel.selectedIndex = +o.dataset.i;
+      sel.dispatchEvent(new Event("change"));
+    }
+    close(); sync();
+  });
+  sel.addEventListener("change", sync);
+  // 选项被程序重填（如切换供应商后封面工艺列表变化）时，自动重建面板
+  new MutationObserver(()=>{ build(); sync(); }).observe(sel, { childList:true });
+  document.addEventListener("click", e=>{ if(!dd.contains(e.target)) close(); });
+  document.addEventListener("keydown", e=>{ if(e.key === "Escape") close(); });
+
+  build(); sync();
+}
+/* 页面内所有下拉统一走这套组件 */
+function initAllDropdowns(){
+  document.querySelectorAll("select:not(#priceTable select)").forEach(initDropdown);
+}
+
+/* ===================== 表格导入 & PDF 页数识别 ===================== */
+/* 纯前端解析：xlsx 本质是 zip，用 DecompressionStream 解压后读 XML，全程离线可用 */
+let IMP = null;            // 当前导入的行
+let IMP_PDF_TARGET = -1;   // 导入面板里点 PDF 的目标行
+let IMP_COLLAPSED = false; // 导入预览是否被「收起」（只折叠，数据不丢）
+let IMP_SHOWN = null;      // 上次渲染的 IMP 对象；换了一批新数据就自动展开
+let IMP_DIAG = "";         // 本批读取诊断（共发现几个 / 读了几个 / 忽略了哪些）
+/* 诊断条常驻在预览面板内：导入后页面会滚到预览，上方的 #calcMsg 会被滚出视口 */
+function renderImpDiag(){
+  const el = $("#impDiag");
+  if(!el) return;
+  el.textContent = IMP_DIAG || "";
+  el.hidden = !IMP_DIAG || !IMP || IMP_COLLAPSED;
+}
+
+async function inflateRaw(u8){
+  const ds = new (window.DecompressionStream)("deflate-raw");
+  const stream = new (window.Blob)([u8]).stream().pipeThrough(ds);
+  const ab = await new (window.Response)(stream).arrayBuffer();
+  return new Uint8Array(ab);
+}
+async function unzip(buf){
+  const u8 = new Uint8Array(buf), dv = new DataView(buf), td = new TextDecoder();
+  let eocd = -1;
+  for(let i = u8.length - 22; i >= Math.max(0, u8.length - 22 - 65558); i--){
+    if(dv.getUint32(i, true) === 0x06054b50){ eocd = i; break; }
+  }
+  if(eocd < 0) throw new Error("不是有效的 xlsx 文件（读不到 zip 目录）");
+  const n = dv.getUint16(eocd + 10, true);
+  let off = dv.getUint32(eocd + 16, true);
+  const metas = [];
+  for(let i = 0; i < n; i++){
+    if(dv.getUint32(off, true) !== 0x02014b50) break;
+    const method = dv.getUint16(off + 10, true);
+    const csize  = dv.getUint32(off + 20, true);
+    const nlen   = dv.getUint16(off + 28, true);
+    const elen   = dv.getUint16(off + 30, true);
+    const clen   = dv.getUint16(off + 32, true);
+    const lho    = dv.getUint32(off + 42, true);
+    metas.push({name: td.decode(u8.subarray(off + 46, off + 46 + nlen)), method, csize, lho});
+    off += 46 + nlen + elen + clen;
+  }
+  const files = {};
+  for(const m of metas){
+    if(m.csize === 0 || /\/$/.test(m.name)) continue;
+    const lnlen = dv.getUint16(m.lho + 26, true), lelen = dv.getUint16(m.lho + 28, true);
+    const start = m.lho + 30 + lnlen + lelen;
+    let data = u8.subarray(start, start + m.csize);
+    if(m.method === 8) data = await inflateRaw(data);
+    else if(m.method !== 0) throw new Error("不支持的压缩方式：" + m.method);
+    files[m.name] = data;
+  }
+  return files;
+}
+function colIndexOf(ref){
+  let n = 0;
+  for(let i = 0; i < ref.length; i++){
+    const c = ref.charCodeAt(i);
+    if(c >= 65 && c <= 90) n = n * 26 + (c - 64); else break;
+  }
+  return n ? n - 1 : 0;
+}
+async function xlsxToMatrix(buf){
+  const files = await unzip(buf);
+  const dp = new DOMParser(), td = new TextDecoder();
+  let shared = [];
+  if(files["xl/sharedStrings.xml"]){
+    const doc = dp.parseFromString(td.decode(files["xl/sharedStrings.xml"]), "application/xml");
+    shared = Array.from(doc.getElementsByTagName("si"))
+      .map(si => Array.from(si.getElementsByTagName("t")).map(t => t.textContent).join(""));
+  }
+  const names = Object.keys(files).filter(x => /^xl\/worksheets\/sheet\d+\.xml$/.test(x))
+    .sort((a,b) => parseInt(a.match(/\d+/)[0],10) - parseInt(b.match(/\d+/)[0],10));
+  if(!names.length) throw new Error("xlsx 里没有工作表");
+  const doc = dp.parseFromString(td.decode(files[names[0]]), "application/xml");
+  const rows = [];
+  Array.from(doc.getElementsByTagName("row")).forEach(r => {
+    const cells = [];
+    Array.from(r.getElementsByTagName("c")).forEach(c => {
+      const idx = colIndexOf(c.getAttribute("r") || "A");
+      const t = c.getAttribute("t");
+      let v = "";
+      if(t === "inlineStr"){
+        const te = c.getElementsByTagName("t")[0]; v = te ? te.textContent : "";
+      }else{
+        const ve = c.getElementsByTagName("v")[0]; v = ve ? ve.textContent : "";
+        if(t === "s" && v !== "") v = shared[+v] != null ? String(shared[+v]) : "";
+      }
+      cells[idx] = v;
+    });
+    rows.push(cells);
+  });
+  return rows;
+}
+function csvToMatrix(text){
+  if(text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+  const rows = []; let cur = [], cell = "", q = false;
+  for(let i = 0; i < text.length; i++){
+    const ch = text[i];
+    if(q){ if(ch === '"'){ if(text[i+1] === '"'){ cell += '"'; i++; } else q = false; } else cell += ch; }
+    else if(ch === '"') q = true;
+    else if(ch === ','){ cur.push(cell); cell = ""; }
+    else if(ch === "\n" || ch === "\r"){
+      if(ch === "\r" && text[i+1] === "\n") i++;
+      cur.push(cell); rows.push(cur); cur = []; cell = "";
+    } else cell += ch;
+  }
+  if(cell !== "" || cur.length){ cur.push(cell); rows.push(cur); }
+  return rows.filter(r => r.some(c => String(c).trim() !== ""));
+}
+function excelDate(v){
+  v = String(v == null ? "" : v).trim();
+  if(!v) return "";
+  if(/^\d{4}-\d{2}-\d{2}/.test(v)) return v.slice(0, 10);
+  if(/^\d+(\.\d+)?$/.test(v)){
+    const n = parseFloat(v);
+    if(n > 20000 && n < 80000) return new Date(Math.round((n - 25569) * 86400000)).toISOString().slice(0, 10);
+  }
+  return "";
+}
+function campusOfHeader(h){
+  const s = String(h || "").trim();
+  if(!s || s.indexOf("校区") < 0) return null;
+  return CAMPUSES.find(n => n === s || n.indexOf(s) >= 0 || s.indexOf(n) >= 0) || null;
+}
+/* 表头识别 + 数据行提取（科目/教研资料/年级 为合并单元格时自动向下继承） */
+function parseSheet(matrix){
+  let hi = -1;
+  for(let i = 0; i < matrix.length; i++){
+    const r = matrix[i] || [], j = r.join("|");
+    if((/科目|版本|印刷要求/.test(j)) && r.filter(x => String(x).trim() !== "").length >= 3){ hi = i; break; }
+  }
+  if(hi < 0) throw new Error("没找到表头行（表头需包含 科目 / 版本 / 印刷要求 / 校区 等列名）");
+  const H = matrix[hi];
+  const map = { subject:-1, booktype:-1, grade:-1, version:-1, date:-1, arrive:-1, qty:-1, req:-1, pages:-1 };
+  const campusCols = [];
+  H.forEach((h, idx) => {
+    const s = String(h || "").trim();
+    if(!s) return;
+    if(/科目/.test(s)) map.subject = idx;
+    else if(/教研资料|资料类型/.test(s)) map.booktype = idx;
+    else if(/年级/.test(s)) map.grade = idx;
+    else if(/版本/.test(s) && map.version < 0) map.version = idx;
+    else if(/开课日期|上课日期/.test(s)) map.arrive = idx;
+    else if(/送印日期|日期/.test(s)) map.date = map.date < 0 ? idx : map.date;
+    else if(/数量/.test(s)) map.qty = idx;
+    else if(/要求/.test(s)) map.req = idx;
+    else if(/面数|页数|页码/.test(s)) map.pages = idx;
+    else { const c = campusOfHeader(s); if(c) campusCols.push({idx, campus:c}); }
+  });
+  if(map.subject < 0 && map.version < 0 && map.qty < 0 && !campusCols.length)
+    throw new Error("表头里没认出任何有效列（科目 / 版本 / 数量 / 校区）");
+  const rows = [], last = {};
+  for(let i = hi + 1; i < matrix.length; i++){
+    const r = matrix[i] || [];
+    const get = idx => idx >= 0 && r[idx] != null ? String(r[idx]).trim() : "";
+    ["subject","booktype","grade"].forEach(k => { const v = get(map[k]); if(v) last[k] = v; });
+    const campus = {}; let csum = 0;
+    campusCols.forEach(cc => { const v = parseInt(r[cc.idx], 10); if(v > 0){ campus[cc.campus] = v; csum += v; } });
+    const qty = parseInt(get(map.qty), 10) || csum;
+    const version = get(map.version);
+    if(!version && !qty) continue;
+    rows.push({
+      subject: last.subject || "", booktype: last.booktype || "", grade: last.grade || "",
+      version, date: excelDate(get(map.date)), arrive: excelDate(get(map.arrive)),
+      req: get(map.req), pages: parseInt(get(map.pages), 10) || 0,
+      qty, campus, noPagesCol: map.pages < 0
+    });
+  }
+  if(!rows.length) throw new Error("表格里没有数据行");
+  return rows;
+}
+function setFormSel(id, val){
+  const sel = $("#" + id);
+  if(!val) return;
+  if(!Array.from(sel.options).some(op => (op.value || op.textContent) === val))
+    sel.insertAdjacentHTML("beforeend", "<option>" + val + "</option>");
+  sel.value = val;
+  sel.dispatchEvent(new Event("change"));
+}
+/* 把一行导入数据填进表单（触发既有联动：下拉同步、校区汇总、算价） */
+function applyRowToForm(r){
+  setFormSel("b_subject", r.subject);
+  setFormSel("b_grade", r.grade);
+  setFormSel("b_booktype", r.booktype);
+  $("#b_version").value = r.version || "";
+  if(r.date) $("#b_date").value = r.date;
+  if(r.arrive) $("#b_arrive").value = r.arrive;
+  $("#b_req").value = r.req || "";
+  const req = r.req || "";
+  /* 只有行里明确写了尺寸才覆盖，否则保留用户在本批规格里选的 A4/A3 */
+  if(/A3/i.test(req)) setFormSel("b_size", "A3");
+  else if(/A4/i.test(req)) setFormSel("b_size", "A4");
+  if(isBook()){
+    if(/内页彩色/.test(req)){
+      const op = Array.from($("#b_inner").options).find(o => o.textContent.indexOf("彩色") >= 0 && o.textContent.indexOf("100克") < 0);
+      if(op) setFormSel("b_inner", op.value || op.textContent);
+    }else if(/内页黑白/.test(req)){
+      const op = Array.from($("#b_inner").options).find(o => o.textContent.indexOf("黑白") >= 0);
+      if(op) setFormSel("b_inner", op.value || op.textContent);
+    }
+  }
+  CAMPUSES.forEach((c, i) => { $("#bc_" + i).value = (r.campus && r.campus[c]) || ""; });
+  const hasC = Object.keys(r.campus || {}).length > 0;
+  /* 数量要先写：b_split 触发的 syncCampus→applyGoodsPrice 要按本行数量取印刷品档位价 */
+  if(!hasC) $("#b_qty").value = r.qty || "";
+  $("#b_split").value = hasC ? "是" : "否";
+  $("#b_split").dispatchEvent(new Event("change"));
+  syncCampus();
+  $("#b_pages").value = r.pages > 0 ? r.pages : "";
+  updateQtyNote();
+}
+/* PDF 页数识别：只读需要的字节。
+   PDF 的页面树 / xref 都在文件尾部，先扫尾部 2MB 即可；旧版把整个文件
+   arrayBuffer() + 解码成字符串，遇到 100MB+ 的绘本 PDF 会卡住整个页面。
+   入参可为 File / Blob（推荐，支持按段读）或 ArrayBuffer（兼容旧调用）。 */
+async function pdfPageCount(src){
+  const isAB = (typeof ArrayBuffer !== "undefined") && src instanceof ArrayBuffer;
+  const size = isAB ? src.byteLength : (src && src.size) || 0;
+  const dec = new TextDecoder("latin1");
+  const read = async (start, end) => {
+    end = Math.min(end, size);
+    if(end <= start) return "";
+    const bytes = isAB
+      ? new Uint8Array(src, start, end - start)
+      : new Uint8Array(await src.slice(start, end).arrayBuffer());
+    return dec.decode(bytes);
+  };
+  const pageHits = s => (s.match(/\/Type\s*\/Page[\s/>\]}]/g) || []).length;
+  const counts = s => Array.from(s.matchAll(/\/Count\s+(\d+)/g)).map(m => +m[1]);
+  const ENC = "该 PDF 设置了密码，页数读不到（文件已加入预览，请手动填面数）";
+  const NOP = "无法识别该 PDF 的页数（可能用了压缩对象流），文件已加入预览，请手动填面数";
+  if(/\/Encrypt\b/.test(await read(0, 65536))) throw new Error(ENC);
+  const CH = 1024 * 1024;
+  /* 尾部 2MB：/Count 是页面树根记录的总页数，比逐个 /Type /Page 更权威 */
+  const tc = counts(await read(Math.max(0, size - 2 * CH), size));
+  if(tc.length) return Math.max.apply(null, tc);
+  /* 尾部没有 /Count（老式 / 对象流 PDF）→ 全文分块，块间留 64 字节重叠防止切断关键字 */
+  let n = 0, cs = [], overlap = "";
+  for(let off = 0; off < size; off += CH){
+    const s = overlap + await read(off, off + CH);
+    if(/\/Encrypt\b/.test(s)) throw new Error(ENC);
+    n += pageHits(s) - pageHits(overlap);   // 扣掉上一块尾部已数过的，避免重叠段重复计
+    cs = cs.concat(counts(s));
+    overlap = s.slice(-64);
+  }
+  if(cs.length) return Math.max.apply(null, cs);
+  if(n) return n;
+  throw new Error(NOP);
+}
+function pagesNeeded(){ return isBook() || itemMode() === "exam"; }
+function escHtml(s){
+  return String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+function impLabel(r){ return r.version || r.name || r.booktype || "未命名"; }
+function campusCount(r){ return Object.keys(r.campus || {}).length; }
+
+/* ---------- 每行的单独印刷规格：不用改完全局规格再跳回来 ---------- */
+function specMode(sp){ return sp.item === ITEM_BOOK ? "book" : (sp.item === "试卷" ? "exam" : "goods"); }
+function snapSpec(){
+  return {
+    item: itemType(),
+    supplier: $("#b_supplier").value,
+    cover: isBook() ? $("#b_cover").value : "",
+    inner: isBook() ? $("#b_inner").value : "",
+    size: (isBook() || itemMode() === "exam") ? ($("#b_size").value || "A4") : "A4",
+    paper: (itemMode() === "goods" && $("#b_paper")) ? $("#b_paper").value : "",
+    extras: isBook() ? extras() : []
+  };
+}
+function specSame(a, b){ return JSON.stringify(a) === JSON.stringify(b); }
+function rowSpecText(sp){
+  const m = specMode(sp);
+  if(m === "book") return "书本 · " + sp.supplier + " · " + (sp.cover || "—") + " · " + (sp.inner || "—")
+    + " · " + (sp.size || "A4") + (sp.extras && sp.extras.length ? " · 附加：" + sp.extras.join("、") : "");
+  if(m === "exam") return "试卷 · " + sp.supplier + " · " + (sp.size || "A4");
+  return sp.item + " · " + sp.supplier + (sp.paper ? " · " + sp.paper : " · 未选纸张");
+}
+function applySpecToForm(sp){
+  setFormSel("b_itemtype", sp.item);
+  setFormSel("b_supplier", sp.supplier);
+  const m = specMode(sp);
+  if(m === "book"){
+    setFormSel("b_cover", sp.cover);
+    setFormSel("b_inner", sp.inner);
+    setFormSel("b_size", sp.size || "A4");
+  }else if(m === "exam"){
+    setFormSel("b_size", sp.size || "A4");
+  }else{
+    setFormSel("b_paper", sp.paper);
+  }
+  document.querySelectorAll("#b_extras input").forEach(cb => {
+    cb.checked = m === "book" && (sp.extras || []).indexOf(cb.value) >= 0;
+  });
+}
+function specEditorHtml(sp){
+  const m = specMode(sp);
+  const itemOpts = Array.from($("#b_itemtype").options)
+    .map(o => '<option' + (o.textContent === sp.item ? " selected" : "") + ">" + escHtml(o.textContent) + "</option>").join("");
+  const supOpts = SUPPLIERS.map(s => '<option' + (s === sp.supplier ? " selected" : "") + ">" + s + "</option>").join("");
+  let h = '<div class="imp-spechd">本行规格 —— 显示的是当前取值；改动任意一项，这一行就按这里的价格算，不再跟随上方「本批印刷规格」</div>'
+    + '<div class="imp-specform">'
+    + '<label>印刷项目<select class="rs-item">' + itemOpts + '</select></label>'
+    + '<label>供应商<select class="rs-sup">' + supOpts + '</select></label>';
+  if(m === "book"){
+    const covs = (COVERS[sp.supplier] || []).slice();
+    if(sp.cover && covs.indexOf(sp.cover) < 0) covs.unshift(sp.cover);
+    h += '<label>封面工艺<select class="rs-cover">' + covs.map(c =>
+        '<option' + (c === sp.cover ? " selected" : "") + ">" + escHtml(c) + "</option>").join("") + '</select></label>'
+      + '<label>内页类型<select class="rs-inner">' + INNERS.map(c =>
+        '<option' + (c === sp.inner ? " selected" : "") + ">" + escHtml(c) + "</option>").join("") + '</select></label>'
+      + '<label>尺寸<select class="rs-size">' + ["A4","A3"].map(s =>
+        '<option' + (s === (sp.size || "A4") ? " selected" : "") + ">" + s + "</option>").join("") + '</select></label>'
+      + '<div class="rs-extras"><span>附加工艺</span>' + EXTRAS_BOOK.map(e =>
+        '<label><input type="checkbox" value="' + escHtml(e) + '"'
+        + ((sp.extras || []).indexOf(e) >= 0 ? " checked" : "") + ">" + escHtml(e) + "</label>").join("") + "</div>";
+  }else if(m === "exam"){
+    h += '<label>尺寸<select class="rs-size">' + ["A4","A3"].map(s =>
+        '<option' + (s === (sp.size || "A4") ? " selected" : "") + ">" + s + "</option>").join("") + '</select></label>';
+  }else{
+    const papers = goodsRows(sp.item, sp.supplier).map(g => g.paper);
+    if(papers.length){
+      const ps = papers.slice();
+      if(sp.paper && ps.indexOf(sp.paper) < 0) ps.unshift(sp.paper);
+      h += '<label>纸张 / 规格<select class="rs-paper">' + ps.map(p =>
+        '<option' + (p === sp.paper ? " selected" : "") + ">" + escHtml(p) + "</option>").join("") + '</select></label>';
+    }else{
+      h += '<span class="rs-empty">该供应商此品类没有报价，加入时会提示需手填单价</span>';
+    }
+  }
+  h += "</div>";
+  h += '<div class="rs-tools">'
+    + '<button type="button" class="mini rs-reset">恢复「跟随本批」</button>'
+    + '<span class="hint">改完直接关掉即可，本行价格已按这里计算</span></div>';
+  return h;
+}
+function readSpecEditor(i){
+  const td = document.querySelector('.imp-specrow[data-sr="' + i + '"] td');
+  const g = c => td.querySelector(c);
+  const item = g(".rs-item").value;
+  const m = item === ITEM_BOOK ? "book" : (item === "试卷" ? "exam" : "goods");
+  return {
+    item: item,
+    supplier: g(".rs-sup").value,
+    cover: (m === "book" && g(".rs-cover")) ? g(".rs-cover").value : "",
+    inner: (m === "book" && g(".rs-inner")) ? g(".rs-inner").value : "",
+    size: (m !== "goods" && g(".rs-size")) ? g(".rs-size").value : "A4",
+    paper: (m === "goods" && g(".rs-paper")) ? g(".rs-paper").value : "",
+    extras: (m === "book") ? Array.from(td.querySelectorAll(".rs-extras input:checked")).map(x => x.value) : []
+  };
+}
+function updateSpecBtn(i){
+  const b = document.querySelector('.imp-specbtn[data-sp="' + i + '"]');
+  const r = IMP && IMP.rows ? IMP.rows[i] : null;
+  if(!b || !r) return;
+  if(r.spec){
+    b.textContent = "单独规格";
+    b.classList.add("on");
+    b.title = rowSpecText(r.spec);
+  }else{
+    b.textContent = "跟随本批";
+    b.classList.remove("on");
+    b.title = "按上方「本批印刷规格」计价；点开可单独设置";
+  }
+}
+function allRowsOwnSpec(){
+  return !!(IMP && IMP.rows && IMP.rows.length && IMP.rows.every(r => r.spec));
+}
+
+/* ---------- 本批印刷规格：导入后必须先确认，否则不能直接加入清单 ---------- */
+let SPEC_OK = false;
+let SPEC_BUSY = false;   // 批量入单逐行应用行内要求时，不触发「需重新确认」
+function specItems(){
+  const mode = itemMode(), out = [];
+  out.push({ k:"印刷项目", v:itemType(), strong:true });
+  out.push({ k:"供应商", v:$("#b_supplier").value, strong:true });
+  if(mode === "book"){
+    out.push({ k:"封面工艺", v:$("#b_cover").value || "未选" });
+    out.push({ k:"内页", v:$("#b_inner").value || "未选" });
+    out.push({ k:"尺寸", v:$("#b_size").value });
+    const ex = extras();
+    if(ex.length) out.push({ k:"附加工艺", v:ex.join("、") });
+  }else if(mode === "exam"){
+    out.push({ k:"尺寸", v:$("#b_size").value });
+    const pr = pick($("#b_supplier").value, "试卷", "印刷面单价");
+    if(pr && pr.a != null) out.push({ k:"印刷面单价", v:fmtUnit(pr.a) + " 元/面" });
+  }else{
+    const r = currentGoodsRow();
+    if(r) out.push({ k:"纸张 / 规格", v:r.paper || "—", strong:true });
+    else out.push({ k:"纸张 / 规格", v:"该供应商此品类无报价", warn:true });
+    if(!r || !(r.tiers && r.tiers.length)) out.push({ k:"价格", v:"需手填单价", warn:true });
+  }
+  return out;
+}
+/* 本批规格的原地编辑区：下拉框直接放在预览面板里，改完不必跳转。
+   这里只用「原生 select」，选项实时取自下方手写区的全局表单，选择时写回全局表单，
+   从而复用既有的全部联动（供应商→封面/内页联动、纸张填充、算价）。 */
+function impSpecEditorHtml(){
+  const item = itemType(), sup = $("#b_supplier").value, m = itemMode();
+  const itemOpts = Array.from($("#b_itemtype").options).map(o =>
+    '<option' + (o.textContent === item ? " selected" : "") + ">" + escHtml(o.textContent) + "</option>").join("");
+  const supOpts = SUPPLIERS.map(s =>
+    '<option' + (s === sup ? " selected" : "") + ">" + s + "</option>").join("");
+  let h = '<div class="imp-spec-editor-hd">在下面直接选本批印刷规格，选完点右侧「按此规格计价」确认（价格实时按这里计算，不用跳到别处）。</div>'
+    + '<div class="imp-specform">'
+    + '<label>印刷项目<select class="se-item">' + itemOpts + '</select></label>'
+    + '<label>供应商<select class="se-sup">' + supOpts + '</select></label>';
+  if(m === "book"){
+    const covs = (COVERS[sup] || []).slice();
+    const curCov = $("#b_cover").value;
+    if(curCov && covs.indexOf(curCov) < 0) covs.unshift(curCov);
+    h += '<label>封面工艺<select class="se-cover">' + covs.map(c =>
+      '<option' + (c === curCov ? " selected" : "") + ">" + escHtml(c) + "</option>").join("") + '</select></label>'
+      + '<label>内页类型<select class="se-inner">' + INNERS.map(c =>
+      '<option' + (c === $("#b_inner").value ? " selected" : "") + ">" + escHtml(c) + "</option>").join("") + '</select></label>'
+      + '<label>尺寸<select class="se-size">' + ["A4","A3"].map(s =>
+      '<option' + (s === ($("#b_size").value || "A4") ? " selected" : "") + ">" + s + "</option>").join("") + '</select></label>'
+      + '<div class="rs-extras"><span>附加工艺</span>' + EXTRAS_BOOK.map(e =>
+      '<label><input type="checkbox" value="' + escHtml(e) + '"'
+      + (extras().indexOf(e) >= 0 ? " checked" : "") + ">" + escHtml(e) + "</label>").join("") + "</div>";
+  }else if(m === "exam"){
+    h += '<label>尺寸<select class="se-size">' + ["A4","A3"].map(s =>
+      '<option' + (s === ($("#b_size").value || "A4") ? " selected" : "") + ">" + s + "</option>").join("") + '</select></label>';
+  }else{
+    const rows = goodsRows(item, sup);
+    if(rows.length){
+      const ps = rows.map(g => g.paper);
+      const curP = $("#b_paper") ? $("#b_paper").value : "";
+      if(curP && ps.indexOf(curP) < 0) ps.unshift(curP);
+      h += '<label>纸张 / 规格<select class="se-paper">' + ps.map(p =>
+        '<option' + (p === curP ? " selected" : "") + ">" + escHtml(p) + "</option>").join("") + '</select></label>';
+    }else{
+      h += '<span class="rs-empty">该供应商此品类没有报价，加入时会提示需手填单价</span>';
+    }
+  }
+  h += "</div>";
+  return h;
+}
+let IMP_SPEC_OPEN = false;
+function renderImpSpecEditor(){
+  const ed = $("#impSpecEditor");
+  if(!ed) return;
+  if(!IMP){ ed.classList.remove("open"); IMP_SPEC_OPEN = false; ed.innerHTML = ""; return; }
+  if(IMP_SPEC_OPEN){
+    ed.innerHTML = impSpecEditorHtml();
+    ed.classList.add("open");
+    bindImpSpecEditor(ed);
+  }else{
+    ed.classList.remove("open");
+    ed.innerHTML = "";
+  }
+}
+function bindImpSpecEditor(ed){
+  ed.querySelectorAll("select").forEach(sel => {
+    if(sel.dataset.seBound) return;
+    sel.dataset.seBound = "1";
+    sel.addEventListener("change", () => {
+      const cls = sel.className;
+      if(cls.indexOf("se-item") >= 0) setFormSel("b_itemtype", sel.value);
+      else if(cls.indexOf("se-sup") >= 0) setFormSel("b_supplier", sel.value);
+      else if(cls.indexOf("se-cover") >= 0) setFormSel("b_cover", sel.value);
+      else if(cls.indexOf("se-inner") >= 0) setFormSel("b_inner", sel.value);
+      else if(cls.indexOf("se-size") >= 0) setFormSel("b_size", sel.value);
+      else if(cls.indexOf("se-paper") >= 0) setFormSel("b_paper", sel.value);
+      /* 联动后选项可能变化（如换供应商 → 封面/纸张变），整区重建以对齐 */
+      IMP_SPEC_OPEN = true;
+      renderImpSpecEditor();
+    });
+  });
+  /* 附加工艺 checkbox */
+  ed.querySelectorAll(".rs-extras input").forEach(cb => {
+    if(cb.dataset.seBound) return;
+    cb.dataset.seBound = "1";
+    cb.addEventListener("change", () => {
+      const vals = Array.from(ed.querySelectorAll(".rs-extras input:checked")).map(x => x.value);
+      document.querySelectorAll("#b_extras input").forEach(orig => {
+        orig.checked = vals.indexOf(orig.value) >= 0;
+      });
+      autoReq(); onSpecChanged();
+      IMP_SPEC_OPEN = true; renderImpSpecEditor();
+    });
+  });
+}
+function openImpSpecEditor(){
+  IMP_SPEC_OPEN = true;
+  renderImpSpec();   // 内部会同步编辑区展开 + 按钮文案
+  const ed = $("#impSpecEditor");
+  if(ed) ed.classList.add("spec-flash");
+}
+function closeImpSpecEditor(){
+  IMP_SPEC_OPEN = false;
+  renderImpSpec();   // 内部会同步编辑区收起 + 按钮文案
+}
+function renderImpSpec(){
+  const chips = $("#impSpecChips");
+  if(!chips) return;
+  chips.innerHTML = specItems().map(i =>
+    '<span class="imp-chip' + (i.warn ? " warn" : "") + '">' + escHtml(i.k) + "：<b>" + escHtml(i.v) + "</b></span>").join("");
+  $("#impSpec").classList.toggle("ok", SPEC_OK);
+  $("#impSpecTitle").textContent = SPEC_OK
+    ? "本批印刷规格 —— 已确认，按此计价"
+    : "本批印刷规格 —— 请先确认，价格按此计算";
+  $("#impSpecTip").textContent = SPEC_OK
+    ? "规格已确认。下方继续填数量 / 分校区 / 面数，再点「全部计算并加入清单」。（个别行不同的话，点该行「规格」单独设置）"
+    : "整批规格一样：点「修改规格」选好后回来「按此规格计价」；个别行不同：直接点那一行的「规格」按钮单独设置（全部行都单独设置后也可直接加入清单）。";
+  const okBtn = $("#btnSpecOk");
+  if(okBtn) okBtn.classList.toggle("hidden", SPEC_OK);
+  const editBtn = $("#btnSpecEdit");
+  if(editBtn) editBtn.textContent = IMP_SPEC_OPEN ? "收起规格" : "修改规格";
+  const addBtn = $("#btnImpAdd");
+  if(addBtn) addBtn.disabled = !(SPEC_OK || allRowsOwnSpec());
+  const clr = $("#btnSpecClearRows");
+  if(clr) clr.classList.toggle("hidden", !(IMP && IMP.rows && IMP.rows.some(r => r.spec)));
+  renderImpSpecEditor();   // 编辑器跟随 SPEC_OK / IMP 状态同步
+  if(IMP && IMP.rows) updateImpNote();
+}
+function setSpecOk(v){
+  SPEC_OK = !!v;
+  if(SPEC_OK) closeImpSpecEditor();   // 确认规格后收起原地编辑区
+  renderImpSpec();
+}
+/* 规格任何一项变动 → 需要重新确认（批量入单过程中逐行应用行内要求时不重置） */
+function onSpecChanged(){
+  if(SPEC_BUSY) return;
+  if(!IMP) return;
+  if(SPEC_OK){ SPEC_OK = false; }
+  renderImpSpec();
+}
+/* 平滑滚动，并兜底保证元素真的进到视口（个别环境下 smooth 不生效） */
+function scrollToEl(el, block){
+  if(!el) return;
+  const opt = { behavior:"smooth", block: block || "center" };
+  try{ el.scrollIntoView(opt); }catch(e){ el.scrollIntoView(); }
+  setTimeout(() => {
+    const r = el.getBoundingClientRect();
+    if(r.top < -20 || r.top > window.innerHeight - 100){
+      try{ el.scrollIntoView({ block: block || "center" }); }catch(e){}
+    }
+  }, 340);
+}
+function focusImportSpec(){
+  const sp = $("#impSpec");
+  if(!sp) return;
+  if(!IMP){ setMsg("#calcMsg", "当前没有待确认的导入数据", "warn"); return; }
+  scrollToEl(sp, "center");
+  sp.classList.remove("spec-flash");
+  void sp.offsetWidth;
+  sp.classList.add("spec-flash");
+  setTimeout(() => sp.classList.remove("spec-flash"), 1800);
+}
+function focusSpecGroup(){
+  if(!handOpen()) setHandOpen(true);
+  const g = $("#specGroup");
+  if(!g) return;
+  scrollToEl(g, "center");
+  g.classList.remove("spec-flash");
+  void g.offsetWidth;
+  g.classList.add("spec-flash");
+  setTimeout(() => g.classList.remove("spec-flash"), 1800);
+}
+function updateImpStatus(i){
+  const r = IMP.rows[i], td = document.querySelector('.imp-st[data-s="' + i + '"]');
+  if(!td) return;
+  const need = pagesNeeded();
+  const ok = r.pages > 0;
+  td.className = "imp-st " + (ok ? "ok" : (need ? "miss" : ""));
+  td.textContent = ok ? "✔ " + r.pages + " 面" : (need ? "⚠ 缺面数" : "—");
+}
+function updateImpNote(){
+  const need = pagesNeeded();
+  const miss = IMP.rows.filter(r => !(r.pages > 0)).length;
+  const noQty = IMP.rows.filter(r => !(r.qty > 0)).length;
+  const note = $("#impNote");
+  const parts = [];
+  if(noQty) parts.push("有 " + noQty + " 行还没填数量");
+  if(need && miss) parts.push("有 " + miss + " 行没有面数" + (IMP.rows.some(r => r.noPagesCol) ? "（表格里没有面数/页数列）" : ""));
+  note.className = "imp-note" + (parts.length ? " warn" : "");
+  note.innerHTML = parts.length
+    ? "⚠ " + parts.join("；") + " —— 可直接在表格里填写；分校区点「不分校区」按钮展开填写，不要的行点 ✕ 删除"
+    : (SPEC_OK || allRowsOwnSpec()
+        ? "数量与面数齐全，规格已就绪，点下方按钮计算并加入清单"
+        : "数量与面数齐全 —— 整批一样的先在上方确认本批印刷规格；个别不同的点该行「规格」单独设置");
+}
+function impCampusSum(i){
+  const r = IMP.rows[i], el = document.querySelector('.imp-camsum[data-cs="' + i + '"]');
+  if(!el) return;
+  const n = campusCount(r), t = Object.values(r.campus || {}).reduce((a,b)=>a+b,0);
+  el.textContent = n ? "校区合计：" + t + "（已写入数量）" : "当前不分校区，数量请直接填在「数量」列";
+}
+/* 预览收起后，上方批量录入区仍能看到导入了什么、能一键展开继续编辑 */
+function renderImpResume(){
+  const bar = $("#impResume"), tx = $("#impResumeTx");
+  if(!bar || !tx) return;
+  if(!IMP || !IMP_COLLAPSED){ bar.classList.add("hidden"); return; }
+  bar.classList.remove("hidden");
+  const rows = IMP.rows || [];
+  const qty = rows.reduce((a, r) => a + (r.qty || 0), 0);
+  const filled = rows.filter(r => r.qty > 0).length;
+  const spec = rows.filter(r => r.spec).length;
+  const names = rows.slice(0, 2).map(r => impLabel(r)).join("、");
+  tx.innerHTML = "已保留导入内容：<b>" + escHtml(IMP.file || "—") + "</b> · <b>" + rows.length + " 行</b>"
+    + (qty ? "，合计 " + qty + " 份" : "") + "，已填数量 " + filled + " 行"
+    + (spec ? "，" + spec + " 行单独规格" : "")
+    + "，" + (SPEC_OK ? "本批规格已确认" : "本批规格待确认")
+    + (names ? " · " + escHtml(names) + (rows.length > 2 ? "…" : "") : "");
+}
+function renderImport(){
+  const box = $("#impBox");
+  if(!IMP){
+    box.classList.add("hidden");
+    IMP_COLLAPSED = false; IMP_SHOWN = null;
+    const addBtn = $("#btnImpAdd");
+    if(addBtn) addBtn.disabled = true;   // 没有导入数据时按钮不应是可点的
+    IMP_DIAG = ""; renderImpDiag();
+    renderImpResume();
+    return;
+  }
+  if(IMP !== IMP_SHOWN){ IMP_COLLAPSED = false; IMP_SHOWN = IMP; }  // 新一批数据自动展开
+  box.classList.toggle("hidden", IMP_COLLAPSED);
+  renderImpDiag();
+  renderImpResume();
+  if(IMP_COLLAPSED) return;    // 只折叠，不重绘表格；展开时数据原样还在
+  const rows = IMP.rows;
+  renderImpSpec();
+  $("#impMeta").textContent = "「" + (IMP.file || "") + "」共 " + rows.length + " 行，合计 "
+    + rows.reduce((a, r) => a + (r.qty || 0), 0) + " 份";
+  updateImpNote();
+  const need = pagesNeeded();
+  $("#impTbody").innerHTML = rows.map((r, i) => {
+    const cn = campusCount(r);
+    return "<tr>"
+      + "<td>" + (i + 1) + "</td>"
+      + "<td>" + escHtml(r.grade || (r.isFile ? "文件" : "—")) + "</td>"
+      + '<td class="imp-name" title="' + escHtml(impLabel(r)) + '">' + escHtml(impLabel(r)) + "</td>"
+      + '<td><input type="number" min="1" step="1" class="imp-qty" data-q="' + i + '" value="' + (r.qty > 0 ? r.qty : "") + '" placeholder="填数量"></td>'
+      + '<td><button type="button" class="mini imp-cam' + (cn ? " on" : "") + '" data-c="' + i + '">'
+        + (cn ? cn + " 个校区" : "不分校区") + "</button></td>"
+      + '<td><input type="number" min="1" step="1" class="imp-pages" data-p="' + i + '" value="' + (r.pages > 0 ? r.pages : "") + '" placeholder="待填"></td>'
+      + '<td class="imp-st ' + (r.pages > 0 ? "ok" : (need ? "miss" : "")) + '" data-s="' + i + '">'
+        + (r.pages > 0 ? "✔ " + r.pages + " 面" : (need ? "⚠ 缺面数" : "—")) + "</td>"
+      + '<td><button type="button" class="mini imp-specbtn' + (r.spec ? " on" : "") + '" data-sp="' + i + '" title="'
+        + escHtml(r.spec ? rowSpecText(r.spec) : "按上方「本批印刷规格」计价；点开可单独设置") + '">'
+        + (r.spec ? "单独规格" : "跟随本批") + "</button></td>"
+      + '<td><button type="button" class="mini imp-del" data-d="' + i + '" title="从预览中删除这一行">✕</button></td>'
+      + "</tr>"
+      + '<tr class="imp-camrow hidden" data-cr="' + i + '"><td colspan="9">'
+      + '<div class="imp-camhd">分校区数量 —— 留空表示不分校区；填写后自动汇总写入「数量」</div>'
+      + '<div class="imp-camgrid">' + CAMPUSES.map(c =>
+            '<label><span title="' + escHtml(c) + '">' + escHtml(c) + '</span>'
+            + '<input type="number" min="0" step="1" class="imp-ci" data-ci="' + i + '" data-campus="' + escHtml(c) + '" value="'
+            + ((r.campus && r.campus[c]) || "") + '" placeholder="—"></label>').join("") + "</div>"
+        + '<div class="imp-camsum" data-cs="' + i + '"></div>'
+      + "</td></tr>"
+      + '<tr class="imp-specrow hidden" data-sr="' + i + '"><td colspan="9"></td></tr>';
+  }).join("");
+  box.querySelectorAll(".imp-pages").forEach(inp => inp.addEventListener("input", () => {
+    const i = +inp.dataset.p;
+    IMP.rows[i].pages = parseInt(inp.value, 10) || 0;
+    updateImpStatus(i); updateImpNote();
+  }));
+  box.querySelectorAll(".imp-qty").forEach(inp => inp.addEventListener("input", () => {
+    const i = +inp.dataset.q;
+    const hasCampus = campusCount(IMP.rows[i]) > 0;
+    IMP.rows[i].qty = parseInt(inp.value, 10) || 0;
+    if(hasCampus) inp.value = Object.values(IMP.rows[i].campus).reduce((a,b)=>a+b,0);
+    $("#impMeta").textContent = "「" + (IMP.file || "") + "」共 " + IMP.rows.length + " 行，合计 "
+      + IMP.rows.reduce((a, r) => a + (r.qty || 0), 0) + " 份";
+    updateImpNote();
+  }));
+  box.querySelectorAll(".imp-cam").forEach(b => b.addEventListener("click", () => {
+    const i = +b.dataset.c;
+    const tr = document.querySelector('.imp-camrow[data-cr="' + i + '"]');
+    if(!tr) return;
+    tr.classList.toggle("hidden");
+    if(!tr.classList.contains("hidden")) impCampusSum(i);
+  }));
+  box.querySelectorAll(".imp-ci").forEach(inp => inp.addEventListener("input", () => {
+    const i = +inp.dataset.ci, camp = inp.dataset.campus, v = parseInt(inp.value, 10);
+    const r = IMP.rows[i];
+    r.campus = r.campus || {};
+    if(v > 0) r.campus[camp] = v; else delete r.campus[camp];
+    const sum = Object.values(r.campus).reduce((a,b)=>a+b,0);
+    const qi = document.querySelector('.imp-qty[data-q="' + i + '"]');
+    if(qi) qi.value = sum > 0 ? sum : "";
+    r.qty = sum;
+    const btn = document.querySelector('.imp-cam[data-c="' + i + '"]');
+    if(btn){
+      const cn = campusCount(r);
+      btn.textContent = cn ? cn + " 个校区" : "不分校区";
+      btn.classList.toggle("on", cn > 0);
+    }
+    impCampusSum(i); updateImpNote();
+    $("#impMeta").textContent = "「" + (IMP.file || "") + "」共 " + IMP.rows.length + " 行，合计 "
+      + IMP.rows.reduce((a, x) => a + (x.qty || 0), 0) + " 份";
+  }));
+  box.querySelectorAll(".imp-specbtn").forEach(b => b.addEventListener("click", () => {
+    const i = +b.dataset.sp;
+    const tr = document.querySelector('.imp-specrow[data-sr="' + i + '"]');
+    if(!tr || !IMP || !IMP.rows[i]) return;
+    if(tr.classList.contains("hidden")){
+      const init = IMP.rows[i].spec || snapSpec();
+      tr.firstElementChild._renderedSpec = init;
+      tr.firstElementChild.innerHTML = specEditorHtml(init);
+      tr.classList.remove("hidden");
+    }else{
+      tr.classList.add("hidden");
+    }
+  }));
+  box.querySelectorAll(".imp-specrow td").forEach(td => {
+    td.addEventListener("click", e => {
+      if(!e.target.classList.contains("rs-reset")) return;
+      const tr = td.closest(".imp-specrow");
+      const i = +tr.dataset.sr;
+      if(!IMP || !IMP.rows[i]) return;
+      IMP.rows[i].spec = null;
+      td.innerHTML = specEditorHtml(snapSpec());
+      td._renderedSpec = null;
+      updateSpecBtn(i); renderImpSpec(); updateImpNote();
+    });
+    td.addEventListener("change", e => {
+      if(e.target.classList.contains("rs-reset")) return;
+      const tr = td.closest(".imp-specrow");
+      const i = +tr.dataset.sr;
+      if(!IMP || !IMP.rows[i]) return;
+      const next = readSpecEditor(i);
+      IMP.rows[i].spec = next;
+      /* 换了印刷项目 / 供应商 → 封面、纸张列表要跟着重建（与本次渲染所依据的值比较） */
+      const ref = td._renderedSpec || { item:null, supplier:null };
+      if(ref.item !== next.item || ref.supplier !== next.supplier){
+        td.innerHTML = specEditorHtml(next);
+        td._renderedSpec = next;
+      }
+      updateSpecBtn(i); renderImpSpec(); updateImpNote();
+    });
+  });
+  box.querySelectorAll(".imp-del").forEach(b => b.addEventListener("click", () => {
+    const i = +b.dataset.d;
+    if(!IMP || !IMP.rows[i]) return;
+    IMP.rows.splice(i, 1);
+    if(!IMP.rows.length){
+      IMP = null;
+      setMsg("#calcMsg", "预览里的行已全部删除", "warn");
+    }
+    renderImport();
+  }));
+}
+function importAddAll(){
+  if(!SPEC_OK && !allRowsOwnSpec()){
+    setMsg("#calcMsg", "请先确认印刷规格：整批一样就点上方「修改规格」选好后「按此规格计价」；个别行不同就点该行「规格」单独设置", "warn");
+    const sp = $("#impSpec");
+    if(sp && sp.scrollIntoView) sp.scrollIntoView({ behavior:"smooth", block:"center" });
+    return;
+  }
+  /* 先把表格里手填的数量/面数同步进行数据 */
+  document.querySelectorAll(".imp-qty").forEach(inp => {
+    IMP.rows[+inp.dataset.q].qty = parseInt(inp.value, 10) || 0;
+  });
+  const errs = [], need = pagesNeeded();
+  let added = 0;
+  SPEC_BUSY = true;   // 逐行应用行内要求 / 单独规格时，不打断本次入单
+  const base = snapSpec();          // 入单前的全局规格，算完还原
+  let cur = base;
+  try{
+    for(let i = 0; i < IMP.rows.length; i++){
+      const r = IMP.rows[i];
+      try{
+        if(!(r.qty > 0)) throw new Error("没有数量");
+        const needRow = r.spec ? (specMode(r.spec) !== "goods") : need;
+        if(needRow && !(r.pages > 0)) throw new Error("缺面数");
+        const sp = r.spec || base;    // 该行用的规格：单独设置 > 本批规格
+        if(!specSame(sp, cur)){ applySpecToForm(sp); cur = sp; }
+        applyRowToForm(r);
+        if(itemMode() === "goods") applyGoodsPrice();   // 按本行数量再取一次档位单价
+        const res = computeNow();
+        showResult(res.o, res.r);
+        BATCH.push(res); renderBatch();
+        added++;
+      }catch(e){ errs.push("第 " + (i + 1) + " 行（" + impLabel(r) + "）：" + e.message); }
+    }
+    if(!specSame(cur, base)) applySpecToForm(base);   // 还原全局规格，不影响下一次操作
+  }finally{ SPEC_BUSY = false; }
+  if(added){
+    CAMPUSES.forEach((c, i) => { $("#bc_" + i).value = ""; });
+    $("#b_version").value = "";
+    $("#b_split").value = "否"; $("#b_split").dispatchEvent(new Event("change"));
+  }
+  setMsg("#batchMsg", added ? "导入完成：成功加入 " + added + " 项" + (errs.length ? "，" + errs.length + " 行未加入" : "") : "没有可加入的行",
+    errs.length ? "warn" : "ok");
+  if(errs.length) setMsg("#calcMsg", errs.join("；"), "err");
+  else { setMsg("#calcMsg", ""); IMP = null; renderImport(); }
+}
+/* 单个表格文件（例如把 xlsx 拖到 PDF 页数框）：交给统一导入，语义为「替换预览」 */
+async function handleImportFile(file){ await importMixedList([file], "「" + (file && file.name || "表格") + "」"); }
+/* ---------- 手动填写送印单：折叠 / 展开（每次打开网页默认展开） ---------- */
+function handOpen(){ const b = $("#handBody"); return !!b && !b.classList.contains("hidden"); }
+function handFilled(){
+  /* 只算用户真正填的识别信息，印刷要求是自动带出的，不算 */
+  return ["b_sender","b_version","b_note"].filter(id => {
+    const el = $("#" + id); return el && String(el.value || "").trim();
+  }).length;
+}
+function updateHandBadge(){
+  const bd = $("#handBadge"); if(!bd) return;
+  const n = handFilled();
+  $("#handBadgeN").textContent = n;
+  bd.classList.toggle("hide", handOpen() || n === 0);
+}
+function setHandOpen(open){
+  const body = $("#handBody"), head = $("#handHead");
+  if(!body || !head) return;
+  body.classList.toggle("hidden", !open);
+  head.classList.toggle("closed", !open);
+  head.setAttribute("aria-expanded", open ? "true" : "false");
+  $("#btnHandTg").setAttribute("aria-expanded", open ? "true" : "false");
+  $("#handTgTx").textContent = open ? "收起" : "展开填写";
+  updateHandBadge();
+}
+function initHand(){
+  const head = $("#handHead"); if(!head) return;
+  try{ localStorage.removeItem("sy_hand_open_v1"); }catch(e){}  // 清理旧版记忆
+  setHandOpen(true);   // 手动填写送印单是主要录入方式，每次打开默认展开
+  const toggle = () => { const next = !handOpen(); setHandOpen(next); if(next) head.scrollIntoView({ behavior:"smooth", block:"start" }); };
+  head.addEventListener("click", toggle);
+  head.addEventListener("keydown", e => {
+    if(e.key === "Enter" || e.key === " "){ e.preventDefault(); toggle(); }
+  });
+  ["b_sender","b_version","b_note","b_req"].forEach(id => {
+    const el = $("#" + id);
+    if(el) el.addEventListener("input", updateHandBadge);
+  });
+}
+/* 旧版导入后跳转逻辑已停用（新流程用 flowStart 逐条填入手写单）。
+   保留空实现，避免任何残留调用报错或误把手写单收起。 */
+function jumpToImport(){
+  SPEC_OK = false;
+  if(!handOpen()) setHandOpen(true);   // 无论何处调用，手写单始终保持展开
+}
+function dzFeedback(txt, ok){
+  const dz = $("#dzPages");
+  if(!dz) return;
+  dz.classList.toggle("dz-ok", !!ok);
+  $("#dzTitle").textContent = txt;
+  clearTimeout(dzFeedback._t);
+  dzFeedback._t = setTimeout(() => {
+    dz.classList.remove("dz-ok");
+    $("#dzTitle").textContent = "把 PDF 拖到这里，自动读取页数并填入「内页面数」";
+  }, 7000);
+}
+async function handlePdfFile(file){
+  try{
+    const n = await pdfPageCount(file);
+    if(IMP_PDF_TARGET >= 0 && IMP && IMP.rows[IMP_PDF_TARGET]){
+      IMP.rows[IMP_PDF_TARGET].pages = n;
+      renderImport();
+      setMsg("#calcMsg", "「" + file.name + "」识别到 " + n + " 页，已填入第 " + (IMP_PDF_TARGET + 1) + " 行（按每页 1 面计入，可手改）", "ok");
+      IMP_PDF_TARGET = -1;
+    }else{
+      $("#b_pages").value = n;
+      dzFeedback("已识别「" + file.name + "」共 " + n + " 页，已填入面数", true);
+      setMsg("#calcMsg", "「" + file.name + "」识别到 " + n + " 页，已填入面数（按每页 1 面计入，可手改）", "ok");
+    }
+  }catch(e){
+    setMsg("#calcMsg", "「" + file.name + "」识别失败：" + e.message, "err");
+  }
+}
+/* ---------- 拖放：文件 / 文件夹 ---------- */
+/* 送印文件白名单：PDF / Word（.doc / .docx）/ WPS 文字（.wps）。
+   两层校验：扩展名 + 文件头魔数，防止改后缀混进来 */
+const DOC_EXT = /\.(pdf|docx?|wps)$/i;
+function isDocName(f){ return DOC_EXT.test(f.name || "") && !/^~\$/.test(f.name || ""); }
+function isSheetFile(f){ return /\.(xlsx?|csv)$/i.test(f.name || "") && !/^~\$/.test(f.name || ""); }
+const DOC_KIND_CACHE = new WeakMap();   // 同一文件对象只识别一次头部
+async function docKind(f){
+  if(DOC_KIND_CACHE.has(f)) return DOC_KIND_CACHE.get(f);
+  let kind = null;
+  if(isDocName(f)){
+    const ext = (String(f.name).match(/\.([^.]+)$/) || [,""])[1].toLowerCase();
+    let hex = "", headText = "";
+    try{
+      /* 读前 1KB：部分工具（含 WPS 某些导出方式）会在 %PDF- 前加少量字节 */
+      const head = new Uint8Array(await f.slice(0, 1024).arrayBuffer());
+      hex = Array.from(head.slice(0, 8)).map(b => b.toString(16).padStart(2, "0")).join("");
+      headText = new TextDecoder("latin1").decode(head);
+    }catch(e){ hex = ""; }
+    const pdf = headText.indexOf("%PDF-") >= 0,  // 前 1KB 内出现 %PDF- 就算真 PDF
+          zip = /^504b0304/.test(hex),            // PK..（docx 本质是 zip）
+          ole = /^d0cf11e0a1b11ae1/.test(hex);   // OLE 复合文档（老 .doc / WPS 文字）
+    if(ext === "pdf") kind = pdf ? "pdf" : null;
+    else if(ext === "wps") kind = ole ? "wps" : (zip ? "docx" : null);
+    else if(ext === "docx") kind = zip ? "docx" : (ole ? "doc" : null);
+    else kind = ole ? "doc" : (zip ? "docx" : null);
+  }
+  DOC_KIND_CACHE.set(f, kind);
+  return kind;
+}
+async function filterDocFiles(list){
+  const docs = [], others = [];
+  for(const f of (list || [])){
+    if(!isDocName(f)){ others.push(f); continue; }   // 扩展名先同步挡掉，文件夹里几百个杂项也不会产生 IO
+    const kind = await docKind(f);
+    if(kind) docs.push({ f, kind });
+    else others.push(f);
+  }
+  return { docs, others };
+}
+function skippedKinds(others){
+  const k = {};
+  (others || []).forEach(f => {
+    const n = (f.name || "").toLowerCase();
+    let t = "其它";
+    if(/^~\$/.test(n)) t = "Office 临时文件";
+    else if(/\.(png|jpe?g|webp|bmp|gif|svg|tiff?|heic)$/.test(n)) t = "图片";
+    else if(/\.(xlsx?|csv)$/.test(n)) t = "表格";
+    else if(/\.(wps|wpt|et|dps|rtf|odt|ofd)$/.test(n)) t = "WPS / 其它文字文档";
+    else if(/\.(pptx?|txt|zip|rar|7z|mp4|mov|exe|lnk)$/.test(n)) t = "其它文档";
+    k[t] = (k[t] || 0) + 1;
+  });
+  return Object.keys(k).map(x => x + " " + k[x] + " 个").join("、");
+}
+/* Word 页数：读 docx 里的 docProps/app.xml <Pages>；老 .doc 与读不到时返回 0，由预览里补填 */
+async function docxPageCount(buf){
+  try{
+    const files = await unzip(buf);
+    const key = Object.keys(files).find(k => /^docProps\/app\.xml$/i.test(k));
+    if(!key) return 0;
+    const xml = new TextDecoder("utf-8").decode(files[key]);
+    const m = xml.match(/<Pages>(\d+)<\/Pages>/i);
+    return m ? (parseInt(m[1], 10) || 0) : 0;
+  }catch(e){ return 0; }
+}
+function readEntryDir(dir){
+  return new Promise(resolve => {
+    const all = [];
+    let emptyRetry = 0;
+    /* Chrome 每次 readEntries 最多给 100 条，必须反复调用到返回空数组为止。
+       另外 Chromium 偶发「目录非空但第一批就返回空」（跨事件循环后 entry 变陈旧），
+       此时换一个 reader 再确认两次，避免整个文件夹被误判成空。 */
+    const start = () => {
+      let reader;
+      try{ reader = dir.createReader(); }catch(e){ resolve(all); return; }
+      const step = () => {
+        try{
+          reader.readEntries(batch => {
+            if(!batch.length){
+              if(!all.length && emptyRetry++ < 2){ setTimeout(start, 0); return; }
+              resolve(all); return;
+            }
+            batch.forEach(b => all.push(b));
+            step();
+          }, () => resolve(all));
+        }catch(e){ resolve(all); }
+      };
+      step();
+    };
+    start();
+  });
+}
+async function walkEntry(entry, out){
+  if(!entry) return;
+  try{
+    if(entry.isFile){
+      const f = await new Promise(res => {
+        try{ entry.file(res, () => res(null)); }catch(e){ res(null); }
+      });
+      if(f) out.push(f);
+    }else if(entry.isDirectory){
+      const kids = await readEntryDir(entry);
+      for(const k of kids) await walkEntry(k, out);
+    }
+  }catch(e){ /* 单个文件读不出来就跳过，不影响其余 */ }
+}
+/* ---------- 拖放：drop 同步阶段一次性取好 entries ----------
+   Chromium 的 DataTransferItem 对 webkitGetAsEntry 很敏感：同一个 item 重复取、
+   或者拖到事件结束后再取，都可能返回 null，文件夹内容就读不出来了。
+   旧版 hasDropDir() 与 filesFromDataTransfer() 各取了一次，正是这个隐患。 */
+function readDropItems(dt){
+  const entries = [], plain = [], dirNames = [];
+  let hasDir = false;
+  const items = (dt && dt.items) ? Array.from(dt.items) : [];
+  items.forEach(it => {
+    if(it.kind !== "file") return;
+    let en = null;
+    try{ en = it.webkitGetAsEntry ? it.webkitGetAsEntry() : null; }catch(e){ en = null; }
+    if(en){
+      entries.push(en);
+      if(en.isDirectory){ hasDir = true; dirNames.push(en.name || "文件夹"); }
+    }else{
+      const f = it.getAsFile ? it.getAsFile() : null;
+      if(f) plain.push(f);
+    }
+  });
+  if(!entries.length && !plain.length)
+    Array.prototype.push.apply(plain, Array.from((dt && dt.files) || []));
+  return { entries, plain, hasDir, dirNames };
+}
+/* 本次拖放的诊断，供「一个文件都没读到」时把原因说清楚 */
+let DROP_DIAG = { dirs: [], entryFiles: 0, dtFiles: 0, dtUsable: 0 };
+/* snap 必须在 drop 事件同步阶段取好；本函数只做异步递归，不再碰 dataTransfer.items */
+async function collectDropFiles(snap, dt){
+  const out = [];
+  for(const en of snap.entries){
+    try{ await walkEntry(en, out); }catch(e){ /* 单个 entry 读失败不影响其它 */ }
+  }
+  const entryFiles = out.length;
+  const dtAll = (dt && dt.files) ? Array.from(dt.files) : [];
+  const usable = dtAll.filter(f => f && (f.size > 0 || /\.[^.]+$/.test(f.name || "")));
+  /* 目录递归拿不到内容时，用浏览器直接给的 File 列表兜底。只取其中一路，
+     且绝不按「文件名+大小」去重：不同子目录里的同名文件（如两个封底.jpg）是两行，
+     按名字判重会平白少一个。 */
+  if(!out.length){
+    const src = snap.plain.length ? snap.plain : usable;
+    src.forEach(f => { if(f) out.push(f); });
+  }
+  DROP_DIAG = { dirs: snap.dirNames || [], entryFiles, dtFiles: dtAll.length, dtUsable: usable.length };
+  /* 拖文件夹时浏览器常给一个 0 字节、无扩展名的「目录占位项」。它不是真文件，
+     留着会绕过空结果判断，误报成「没有可送印文档」。 */
+  return out.filter(f => f && (f.size > 0 || /\.[^.]+$/.test(f.name || "")));
+}
+function dropHasFiles(e){
+  const t = (e.dataTransfer && e.dataTransfer.types) || [];
+  return Array.from(t).indexOf("Files") >= 0;
+}
+/* ===================== 导入队列：文件逐条填入手写送印单 =====================
+   新流程不再用「导入预览表格 + 规格确认框」。文件解析成一行后，直接进入一个
+   待办队列 FLOW，依次把标题/年级/页数填进手写送印单；用户在同一张熟悉的表单里
+   核对规格、数量、分校区后点「加入清单」，系统自动载入下一个文件。 */
+const GRADE_TOKENS = ["一年级","二年级","三年级","四年级","五年级","六年级","初一","初二","初三","高一","高二","高三",
+                      "学前班","幼儿园","小学","初中","高中"];
+function guessGrade(text){
+  const s = String(text || "");
+  for(const g of GRADE_TOKENS) if(s.indexOf(g) >= 0) return g;
+  return "";   // 识别不到就不填，让用户自己选，绝不乱猜
+}
+let FLOW = null;   // { rows:[导入行], idx:当前下标 }
+function flowActive(){ return !!(FLOW && FLOW.rows && FLOW.idx >= 0 && FLOW.idx < FLOW.rows.length); }
+function flowRow(){ return flowActive() ? FLOW.rows[FLOW.idx] : null; }
+/* 用一行导入数据填手写表单：识别信息（标题/年级/面数）自动带入；
+   规格、数量、分校区这些"价格相关"的字段保留用户当前选择，只做必要联动。 */
+function flowFillForm(r){
+  setFormSel("b_grade", r.grade);          // 自动识别的年级（识别不到则 setFormSel 直接返回，保留原值）
+  $("#b_version").value = r.version || r.name || "";
+  /* 面数：读到页数就填入；没读到就清空，避免残留上一个文件的页数误导用户 */
+  if(pagesNeeded()) $("#b_pages").value = (r.pages > 0) ? r.pages : "";
+  if(r.qty > 0) $("#b_qty").value = r.qty; // 表格行自带的数量带入；文件行 qty=0，保留用户在表单填的数量
+  autoReq();                                // 印刷要求按当前表单规格生成，不沿用导入行的旧要求
+  updateQtyNote();
+}
+/* 当前规格的可读摘要，用于提示"是否与上一批规格一致" */
+function flowSpecText(){
+  try{
+    return specItems().map(i => i.k + "：" + i.v).join("，");
+  }catch(e){ return itemType() + " · " + $("#b_supplier").value; }
+}
+function renderFlowBar(){
+  const bar = $("#flowBar");
+  if(!bar) return;
+  if(!flowActive()){ bar.classList.add("hide"); bar.innerHTML = ""; return; }
+  bar.classList.remove("hide");
+  const r = flowRow(), total = FLOW.rows.length, n = FLOW.idx + 1;
+  const need = pagesNeeded();
+  const hasPages = r.pages > 0;
+  const warn = (need && !hasPages) || !r.grade;
+  bar.classList.toggle("warn", !!warn);
+  bar.innerHTML =
+      '<div class="flow-top"><span class="fb-ic">📄</span>'
+    + '<b>已自动填入第 ' + n + ' / ' + total + ' 个文件</b>'
+    + '<span class="fb-step">' + escHtml(r.name || r.version || "未命名") + '</span>'
+    + '<span class="spacer"></span>'
+    + '<button type="button" class="mini danger" id="flowSkip">跳过本个</button>'
+    + '</div>'
+    + '<div class="flow-name">资料名已填到「版本」，年级已识别：<b>' + escHtml(r.grade || "（未识别，请手选）") + '</b>'
+    + '　面数：<b>' + (hasPages ? r.pages + " 面" : "（待填）") + '</b></div>'
+    + '<div class="flow-meta">当前印刷规格（与上一条一致就不必改）：' + escHtml(flowSpecText()) + '</div>'
+    + (total > 1
+        ? '<div class="flow-acts">'
+          + '<button type="button" class="mini primary" id="flowAddAll">以上规格跟上一批一致，一键把剩下 ' + total + ' 个全部加入清单</button>'
+          + '</div>'
+          + '<div class="flow-hint">这批 ' + total + ' 个文件若规格、数量、分校区都一样：先在这里填好第一条 → 点上面按钮一次全部加入。'
+          + '若有不一样：就在下面逐条核对，点「加入清单」后会自动载入下一个。</div>'
+        : '<div class="flow-hint">已把文件标题、年级、页数填进下面这张送印单，请核对规格与数量后点「加入清单」。</div>');
+  const skipBtn = $("#flowSkip");
+  if(skipBtn) skipBtn.onclick = flowSkip;
+  const allBtn = $("#flowAddAll");
+  if(allBtn) allBtn.onclick = flowAddAll;
+}
+/* 载入第 i 个文件到手写表单：滚动到顶部（页面停留，不跳转标签） */
+function flowLoad(i){
+  if(!FLOW || !FLOW.rows || i < 0 || i >= FLOW.rows.length) return;
+  FLOW.idx = i;
+  flowFillForm(FLOW.rows[i]);
+  renderFlowBar();
+  setHandOpen(true);
+  scrollToEl($("#flowBar"), "start");
+}
+function flowStart(rows, label){
+  if(!rows || !rows.length){ FLOW = null; renderFlowBar(); return; }
+  FLOW = { rows: rows.slice(), idx: 0 };
+  flowLoad(0);
+}
+function flowSkip(){
+  if(!flowActive()) return;
+  if(FLOW.idx < FLOW.rows.length - 1){ flowLoad(FLOW.idx + 1); }
+  else { setMsg("#calcMsg", "已经是最后一个文件了", "warn"); }
+}
+function flowClear(){
+  FLOW = null;
+  renderFlowBar();
+}
+/* 一键把整个队列按同一套规格/数量/分校区加入清单（复用单条 computeNow，保证算价一致） */
+function flowAddAll(){
+  if(!flowActive()) return;
+  /* 数量/分校区取表单当前值：先确认第一条已填好，再一次性套用到全部文件 */
+  const qtyRow = (splitOn() || campusTotal() > 0) ? campusTotal() : (parseInt($("#b_qty").value, 10) || 0);
+  if(!(qtyRow > 0)){ setMsg("#calcMsg", "请先在手动填写送印单里填好「送印总数量」，再一键加入", "warn"); return; }
+  const rows = FLOW.rows.slice(), need = pagesNeeded();
+  const miss = rows.filter(r => need && !(r.pages > 0));
+  if(miss.length){ setMsg("#calcMsg", "有 " + miss.length + " 个文件没读到页数，请先逐个填好面数再一键加入", "warn"); return; }
+  const errs = [], before = BATCH.length, keepQty = $("#b_qty").value, keepCampus = campusValues(), keepSplit = $("#b_split").value;
+  try{
+    for(const r of rows){
+      try{
+        flowFillForm(r);
+        $("#b_qty").value = keepQty;                       // 全部文件套用同一数量
+        CAMPUSES.forEach((c, i) => { $("#bc_" + i).value = keepCampus[c] || ""; });
+        const res = computeNow();
+        showResult(res.o, res.r);
+        BATCH.push(res);
+      }catch(e){ errs.push("《" + impLabel(r) + "》：" + e.message); }
+    }
+  }finally{
+    $("#b_qty").value = keepQty;
+  }
+  renderBatch();
+  const added = BATCH.length - before;
+  flowClear();
+  if(added){
+    $("#b_version").value = "";
+    CAMPUSES.forEach((c, i) => { $("#bc_" + i).value = ""; });
+    $("#b_split").value = "否"; $("#b_split").dispatchEvent(new Event("change"));
+  }
+  setMsg("#batchMsg", "一键加入完成：成功 " + added + " 项" + (errs.length ? "，" + errs.length + " 项未加入" : ""),
+    errs.length ? "warn" : "ok");
+  if(errs.length) setMsg("#calcMsg", errs.join("；"), "err");
+  else setMsg("#calcMsg", "已把 " + added + " 个文件按同一套规格加入清单", "ok");
+}
+
+/* ---------- 统一导入：表格 / PDF / Word / 文件夹都用这一条路 ---------- */
+async function sheetRows(file){
+  const name = String(file.name || "").toLowerCase();
+  let matrix;
+  if(/\.csv$/.test(name)) matrix = csvToMatrix(await file.text());
+  else if(/\.xlsx$/.test(name)) matrix = await xlsxToMatrix(await file.arrayBuffer());
+  else if(/\.xls$/.test(name)) throw new Error("暂不支持旧版 .xls，请在 Excel 里「另存为 .xlsx」后再导入");
+  else throw new Error("只支持 .xlsx / .csv 表格文件");
+  return parseSheet(matrix);
+}
+/* 把 PDF / Word 文件逐个读成预览行（纯数据，不碰界面） */
+async function buildDocRows(items, fails){
+  fails = fails || [];
+  const norm = [];
+  for(const it of Array.from(items || [])){
+    const f = (it && it.f) ? it.f : it;
+    const kind = (it && it.kind) ? it.kind : await docKind(f);
+    if(kind && f) norm.push({ f, kind });
+  }
+  const rows = [];
+  for(let k = 0; k < norm.length; k++){
+    const { f, kind } = norm[k];
+    if(norm.length > 1){   // 多文件时给个进度，避免以为卡住
+      setMsg("#calcMsg", "正在读取 " + (k + 1) + " / " + norm.length + "：" + f.name, "");
+      await new Promise(r => setTimeout(r, 0));
+    }
+    const nm = f.name.replace(/\.[^.]+$/, "");
+    let pages = 0;
+    if(kind === "pdf"){
+      try{ pages = await pdfPageCount(f); }
+      catch(e){ fails.push(f.name + "：" + e.message); }
+    }else if(kind === "docx"){
+      pages = await docxPageCount(await f.arrayBuffer());
+    }
+    /* 老 .doc 是 OLE 复合文档，纯前端读不了页数：建行，面数留空由预览里补填 */
+    rows.push({
+      name: nm, version: nm,
+      grade: guessGrade((f.webkitRelativePath || "") + "/" + f.name),
+      subject: "", booktype: "",
+      pages, qty: 0, campus: {}, isFile: true, noPagesCol: false, fileKind: kind
+    });
+  }
+  return rows;
+}
+/* list = 拖入/选中的任意文件（含文件夹递归出的文件）。自动分流：
+   表格 → 按表格解析（有表格时重建预览）；PDF / Word → 一个文件一行；其它 → 忽略 */
+async function importMixedList(list, label){
+  const all = Array.from(list || []);
+  const sheets = all.filter(isSheetFile);
+  const { docs, others } = await filterDocFiles(all.filter(f => !isSheetFile(f)));
+  const fails = [];
+  let sheetData = [], sheetN = 0;
+  for(const s of sheets){
+    try{ sheetData = sheetData.concat(await sheetRows(s)); sheetN++; }
+    catch(e){ fails.push(s.name + "：" + e.message); }
+  }
+  const docData = await buildDocRows(docs, fails);
+  const newRows = sheetData.concat(docData);
+  if(!newRows.length){
+    const names = others.slice(0, 3).map(f => "「" + f.name + "」").join("、") + (others.length > 3 ? " 等" : "");
+    let t = (label || "所选内容") + "：共发现 " + all.length + " 个文件，但没有可送印的 PDF / Word / WPS 文档或表格，不会加入清单"
+      + (others.length ? "；这 " + others.length + " 个不是送印文档（" + skippedKinds(others) + "）：" + names : "")
+      + (/文件夹/.test(label || "") ? "。若拖的是文件夹，请改点「选择文件夹」按钮重选一次，或直接把里面的 PDF 拖进来" : "")
+      + (fails.length ? "；" + fails.join("；") : "");
+    IMP_DIAG = t; renderImpDiag();   // 预览还开着时，把「为什么没读到」也显示在面板里
+    setMsg("#calcMsg", t, "err");
+    return;
+  }
+  const useReplace = sheetN > 0;    // 表格是一份完整清单 → 重建预览；只有文件则追加
+  const had = useReplace && IMP && IMP.rows ? IMP.rows.length : 0;
+  if(!useReplace && IMP && IMP.rows && IMP.rows.length){
+    IMP.rows = IMP.rows.concat(newRows);
+    IMP.file = (IMP.file || "") + " ＋ " + newRows.length + " 行";
+  }else{
+    IMP = { rows: newRows, file: sheetN ? sheets[0].name : newRows.length + " 个文件" };
+  }
+  /* 新流程：读到的文件/表格行全部进入待办队列，逐条填进「手动填写送印单」 */
+  flowStart(newRows, label);
+  const miss = newRows.filter(r => !(r.pages > 0)).length;
+  const wordN = docData.filter(r => r.fileKind !== "pdf").length;
+  const parts = [];
+  if(sheetN) parts.push("表格 " + sheetN + " 个（" + sheetData.length + " 行" + (had ? "，已替换原有 " + had + " 行" : "") + "）");
+  if(docData.length) parts.push("PDF / Word / WPS 文件 " + docData.length + " 个");
+  let t = (label ? label + "：" : "") + "共发现 " + all.length + " 个文件，" + parts.join(" + ") + " 已读取，共 " + newRows.length + " 个待填"
+    + (miss ? "，其中 " + miss + " 个没读到页数（填好面数再入单）" : "")
+    + " —— 已把第 1 个的文件名、年级、页数填入上面的「手动填写送印单」，请核对规格/数量后加入清单";
+  if(newRows.length > 1) t += "；这批文件规格若都与上一批一致，可点表单顶部按钮一键全部加入；若不同，逐条填即可（加完自动进下一个）";
+  if(wordN) t += "；Word 页数取自文档属性请核对，.wps / 老 .doc 读不到页数（已留空，请补填）";
+  if(sheetN && docData.length) t += "；表格和文件一起导入时可能有重复行，跳过本个可略过";
+  if(others.length) t += "；已忽略 " + others.length + " 个非送印文件（" + skippedKinds(others) + "）："
+    + others.slice(0, 3).map(f => "「" + f.name + "」").join("、") + (others.length > 3 ? " 等" : "");
+  if(fails.length) t += "；" + fails.length + " 个文件有提示（不影响其它行）：" + fails.join("；");
+  setMsg("#calcMsg", t, (fails.length || miss || others.length) ? "warn" : "ok");
+}
+/* 兼容原有入口名：文件夹 / 拖入 / 选择文件都走统一分流 */
+async function importDocsFromList(list, label){ await importMixedList(list, label || "拖入的内容"); }
+async function handleFilesImport(items, skip){
+  await importMixedList(Array.from(items || []).map(it => (it && it.f) ? it.f : it), "所选文件");
+}
+/* 拖到「PDF 页数框」：单个 PDF → 填面数；Word / 多个文件 → 进导入预览；其它一律忽略 */
+async function onDroppedFiles(fs){
+  const list = Array.from(fs || []);
+  if(!list.length) return;
+  if(list.length > 1){ await importDocsFromList(list, "拖入的内容"); return; }
+  const f = list[0];
+  if(isSheetFile(f)){ await handleImportFile(f); return; }
+  const { docs, others } = await filterDocFiles(list);
+  if(!docs.length){
+    setMsg("#calcMsg", "已忽略「" + f.name + "」：不是 PDF / Word / WPS 文档，不会加入清单", "err");
+    return;
+  }
+  if(docs[0].kind === "pdf"){ await handlePdfFile(f); return; }
+  await importMixedList([f], "「" + f.name + "」");
+}
+function hideDropFail(){ const el = $("#impDropFail"); if(el) el.hidden = true; }
+function showDropFail(snap){
+  const el = $("#impDropFail");
+  if(!el) return;
+  const d = DROP_DIAG || {}, why = $("#impDropFailWhy");
+  if(why){
+    const dirs = (d.dirs || []).length ? "（识别到文件夹：" + d.dirs.slice(0, 2).join("、") + "）" : "";
+    why.textContent = (snap && snap.hasDir)
+      ? "浏览器给了文件夹入口" + dirs + "，但这次没把里面的文件交给网页（直接拖文件夹时偶发，属于浏览器限制，不是文件坏了）。换下面任一种方式都能读到："
+      : "网页没有收到文件内容，请重新拖一次，或用下面的方式选：";
+  }
+  el.hidden = false;
+}
+function dropEmptyMsg(snap){
+  showDropFail(snap);
+  const d = DROP_DIAG || {};
+  const detail = (snap && snap.hasDir)
+    ? "拖入的文件夹：识别到 " + (d.dirs || []).length + " 个文件夹入口，目录递归读到 " + (d.entryFiles || 0)
+      + " 个文件、拖放数据里可用 " + (d.dtUsable || 0) + " 个（共 " + (d.dtFiles || 0) + " 项）"
+    : "没有读到文件";
+  setMsg("#calcMsg", detail + "。已自动打开「选择文件夹」窗口，请选中刚才那个文件夹即可（若窗口没弹出，点下方红框里的按钮重选）", "err");
+  /* 直接拖文件夹这条路在 Chromium 下不可靠（异步目录入口会失效），读到空就
+     立即改用 webkitdirectory 的 <input> 自动弹系统选文件夹窗口，一步到位，
+     不用让用户再去找按钮。仅当确认是文件夹时自动弹（拖单个文件读到空就只提示）。 */
+  if(snap && snap.hasDir){
+    setTimeout(() => {
+      const inp = $("#fileDir");
+      if(inp && "webkitdirectory" in inp) inp.click();
+    }, 0);
+  }
+}
+function initImport(){
+  /* 只保留「选择文件夹」：点按钮或点虚线框，都打开系统选文件夹窗口 */
+  function pickDir(){
+    const inp = $("#fileDir");
+    if(inp && "webkitdirectory" in inp) inp.click();
+    else setMsg("#calcMsg", "当前浏览器不支持「选择文件夹」，请更换 Chrome 或 Edge 浏览器", "warn");
+  }
+  const drop = $("#impDrop");
+  if(drop){
+    drop.addEventListener("click", e => {
+      if(e.target.closest && e.target.closest(".imp-drop-btns")) return;
+      pickDir();
+    });
+    drop.addEventListener("keydown", e => {
+      if(e.target !== drop) return;
+      if(e.key === "Enter" || e.key === " "){ e.preventDefault(); pickDir(); }
+    });
+  }
+  /* 选择整个文件夹（含子文件夹） */
+  $("#btnImportDir").addEventListener("click", e => {
+    e.stopPropagation();
+    pickDir();
+  });
+  $("#fileDir").addEventListener("change", e => {
+    if(e.target.files && e.target.files.length) importMixedList(Array.from(e.target.files), "所选文件夹");
+    e.target.value = "";
+  });
+  $("#btnPdfPages").addEventListener("click", () => { IMP_PDF_TARGET = -1; $("#filePdf").click(); });
+  $("#filePdf").addEventListener("change", e => {
+    if(e.target.files && e.target.files[0]) handlePdfFile(e.target.files[0]);
+    e.target.value = "";
+  });
+  $("#btnSpecOk").addEventListener("click", () => {
+    setSpecOk(true);
+    setMsg("#calcMsg", "本批规格已确认（" + itemType() + " · " + $("#b_supplier").value + "），可以填写数量后加入清单", "ok");
+  });
+  $("#btnSpecEdit").addEventListener("click", () => {
+    /* 原地展开/收起规格编辑区，不再跳转到下方手写区 */
+    if(IMP_SPEC_OPEN) closeImpSpecEditor();
+    else openImpSpecEditor();
+  });
+  $("#btnSpecClearRows").addEventListener("click", () => {
+    if(!IMP || !IMP.rows) return;
+    IMP.rows.forEach(r => { r.spec = null; });
+    renderImport();
+    setMsg("#calcMsg", "已把全部行恢复为「跟随本批印刷规格」", "ok");
+  });
+  /* specBack「回到导入预览」已移除：规格现在原地展开，不再跳转到手写区 */
+  /* 收起＝只折叠，导入的内容仍保留，随时能展开继续编辑 */
+  $("#btnImpCancel").addEventListener("click", () => {
+    if(!IMP) return;
+    IMP_COLLAPSED = true;
+    renderImport();
+    setMsg("#calcMsg", "已收起导入预览，内容仍保留在上方绿色提示条里", "ok");
+    scrollToEl($("#impBar"), "center");
+  });
+  $("#btnImpResume").addEventListener("click", () => {
+    if(!IMP) return;
+    IMP_COLLAPSED = false;
+    renderImport();
+    scrollToEl($("#impBox"), "start");
+  });
+  $("#btnImpClear").addEventListener("click", () => {
+    IMP = null; IMP_COLLAPSED = false;
+    IMP_SPEC_OPEN = false;
+    renderImport();
+    setMsg("#calcMsg", "已清空导入预览（已经加入清单的内容不受影响）", "ok");
+  });
+  $("#btnImpAdd").addEventListener("click", () => {
+    if(!IMP) return;
+    document.querySelectorAll(".imp-pages").forEach(inp => {
+      IMP.rows[+inp.dataset.p].pages = parseInt(inp.value, 10) || 0;
+    });
+    document.querySelectorAll(".imp-qty").forEach(inp => {
+      IMP.rows[+inp.dataset.q].qty = parseInt(inp.value, 10) || 0;
+    });
+    importAddAll();
+  });
+}
+
+/* ===================== 初始化 ===================== */
+function init(){
+  const t = new Date();
+  const today = t.getFullYear()+"-"+String(t.getMonth()+1).padStart(2,"0")+"-"+String(t.getDate()).padStart(2,"0");
+  $("#b_date").value = today;
+  bindSupplier($("#b_supplier"),$("#b_cover"));
+  fillSelect($("#b_inner"),INNERS);
+  fillOpt($("#b_subject"), SUBJECTS); fillOpt($("#b_grade"), GRADES);
+  fillOpt($("#b_booktype"), BOOKTYPES, "（可不填）");
+  buildCampusGrid();
+  $("#b_split").addEventListener("change", syncCampus);
+  $("#b_cover").addEventListener("change", ()=>{ renderPaperVis(); autoReq(); });
+  $("#b_inner").addEventListener("change", autoReq);
+  $("#b_itemtype").addEventListener("change", refreshItemUI);
+  $("#b_paper").addEventListener("change", ()=>{ $("#b_unitprice").dataset.auto="1"; applyGoodsPrice(); renderPaperVis(); autoReq(); });
+  $("#b_unitprice").addEventListener("input", e=>{ e.target.dataset.auto="0"; });
+  $("#b_qty").addEventListener("input", afterQtyChange);
+  $("#b_qty").addEventListener("blur", ()=>{
+    if(splitOn() || campusTotal() > 0) return;   // 数量由校区明细带出，不在这里自动改
+    const row = itemMode()==="goods" ? currentGoodsRow() : null;
+    const moq = row ? (row.moq||1) : 1;
+    const v = parseInt($("#b_qty").value,10) || 0;
+    if(moq > 1 && v > 0 && v < moq){
+      $("#b_qty").value = moq;
+      updateQtyNote(); applyGoodsPrice();
+      setMsg("#calcMsg", `数量低于起订量，已自动调整为 ${moq} ${unitWord(row)}`, "warn");
+    }
+  });
+  $("#b_arrive").addEventListener("change", checkArrive);
+  $("#b_date").addEventListener("change", checkArrive);
+  $("#b_size").addEventListener("change", refreshItemUI);
+  /* 规格一变 → 本批规格需要重新确认 */
+  ["b_itemtype","b_supplier","b_cover","b_inner","b_size","b_paper"].forEach(id => {
+    const el = $("#" + id);
+    if(el) el.addEventListener("change", onSpecChanged);
+  });
+  $("#b_extras").addEventListener("change", onSpecChanged);
+  initImport();
+  initHand();
+  initAllDropdowns();
+  autoReq(); syncCampus(); refreshItemUI();
+  RECORDS = lsGet(LS_REC, []);
+  checkIntegrity(); renderPrices(); renderGoods(); renderRecords(); renderBatch();
+}
+init();
+</script>
+
+</body>
+</html>
